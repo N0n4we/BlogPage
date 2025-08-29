@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     readMoreLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            alert('即将跳转到文章详情页面...');
+            // alert('即将跳转到文章详情页面...');
             // 实际项目中，这里会跳转到具体的文章页面
             // window.location.href = link.getAttribute('href');
         });
