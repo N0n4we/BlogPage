@@ -102,6 +102,29 @@ body {
   font-size: 1.8rem;
   color: var(--section-title-color);
   font-weight: 500;
+  display: flex;
+  overflow: hidden;
+}
+
+.logo-part {
+  display: inline-block;
+}
+
+.logo-part-n4w3 {
+  -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 100%, rgba(0,0,0,0) 100%);
+  mask-image: linear-gradient(to right, rgba(0,0,0,1) 100%, rgba(0,0,0,0) 100%);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition: mask-size 0.6s cubic-bezier(0.645, 0.045, 0.355, 1),
+              -webkit-mask-size 0.6s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* 折叠状态 */
+.logo.folded .logo-part-n4w3 {
+  -webkit-mask-size: 0% 100%;
+  mask-size: 0% 100%;
 }
 
 .nav ul {

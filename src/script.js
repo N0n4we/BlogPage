@@ -88,4 +88,26 @@ document.addEventListener('DOMContentLoaded', () => {
         ctaButton.style.setProperty('--mouse-x', '50%');
         ctaButton.style.setProperty('--mouse-y', '50%');
     }
+
+    // Logo折叠动画
+    const logo = document.querySelector('.logo');
+    let isFolded = false;
+
+    // 检查滚动位置并触发动画
+    function checkScrollPosition() {
+        // 当滚动超过100px时触发动画
+        if (window.scrollY > 100 && !isFolded) {
+            logo.classList.add('folded');
+            isFolded = true;
+        } else if (window.scrollY <= 100 && isFolded) {
+            logo.classList.remove('folded');
+            isFolded = false;
+        }
+    }
+
+    // 监听滚动事件
+    window.addEventListener('scroll', checkScrollPosition);
+    
+    // 初始化检查
+    checkScrollPosition();
 });
