@@ -204,7 +204,7 @@ body {
   /* 亮色背景 */
   border-radius: 50%;
   transform: scale(0);
-  transition: transform 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: transform 2.4s cubic-bezier(0.25, 0.1, 0.25, 1);
   /* 调整动画时间和贝塞尔曲线 */
   z-index: -1;
   pointer-events: none;
@@ -215,10 +215,18 @@ body {
   transform: translate(-50%, -50%) scale(0);
 }
 
-/* 鼠标悬停时触发圆形扩散效果 */
+/* 默认状态下显示原来的背景色 */
+.cta-button {
+  background-color: var(--button-background);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 鼠标悬停时触发亮色圆形扩散效果 */
 .cta-button:hover::before {
   transform: translate(-50%, -50%) scale(3);
   /* 调整缩放比例 */
+  transition: transform 2.4s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 鼠标悬停时改变文字颜色为暗色 */
@@ -279,10 +287,18 @@ body {
   transform: translate(-50%, -50%) scale(0);
 }
 
-/* 鼠标悬停时触发圆形扩散效果 */
+/* 默认状态下显示原来的背景色 */
+.post {
+  background-color: var(--post-background);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 鼠标悬停时触发亮色圆形扩散效果 */
 .post:hover::before {
   transform: translate(-50%, -50%) scale(3);
   /* 调整缩放比例 */
+  transition: transform 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 鼠标悬停时改变文字颜色为暗色 */
@@ -374,8 +390,6 @@ body {
 
 /* 移除了技能列表和成就列表的特定样式，因为现在使用Markdown统一处理 */
 
-
-
 /* 联系页面样式 */
 .contact-section {
   padding: 2rem 0;
@@ -462,4 +476,42 @@ body {
   padding: 1rem 0;
   margin-top: 2rem;
   border-top: 1px solid var(--border-color);
+}
+
+/* Markdown内容样式 */
+.markdown-content {
+  font-size: 1.15rem;
+  line-height: 1.7;
+}
+
+.markdown-content h1 {
+  font-size: 2.2rem;
+  margin-bottom: 1.8rem;
+  color: var(--section-title-color);
+  text-align: center;
+  font-weight: 400;
+}
+
+.markdown-content h2 {
+  font-size: 1.6rem;
+  margin: 2.2rem 0 1.2rem;
+  color: var(--section-title-color);
+  font-weight: 500;
+}
+
+.markdown-content p {
+  margin-bottom: 1.2rem;
+}
+
+.markdown-content ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.markdown-content li {
+  background-color: transparent;
+  margin: 0;
+  padding: 0.25rem 0;
+  border-radius: 0;
+  font-weight: 500;
 }

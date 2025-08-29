@@ -1,8 +1,6 @@
 // script.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 移除了旧的Markdown渲染代码，因为关于页面现在完全使用新的Markdown加载方式
-    
     // 为导航链接添加平滑滚动效果（仅在首页有效）
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
@@ -56,58 +54,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // 为博客文章添加圆形扩散效果
     const posts = document.querySelectorAll('.post');
     posts.forEach(post => {
-        // 添加一个标志来跟踪是否已经设置了鼠标位置
-        let mouseEntered = false;
-        
-        post.addEventListener('mouseenter', (e) => {
-            // 只在第一次进入时设置鼠标位置
-            if (!mouseEntered) {
-                // 获取鼠标相对于文章元素的位置
-                const rect = post.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // 设置圆形扩散效果的起始位置
-                post.style.setProperty('--mouse-x', `${x}px`);
-                post.style.setProperty('--mouse-y', `${y}px`);
-                
-                // 标记已设置位置
-                mouseEntered = true;
-            }
+        post.addEventListener('mousemove', (e) => {
+            // 获取鼠标相对于文章元素的位置
+            const rect = post.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // 设置圆形扩散效果的起始位置
+            post.style.setProperty('--mouse-x', `${x}px`);
+            post.style.setProperty('--mouse-y', `${y}px`);
         });
         
-        // 当鼠标离开时重置标志
-        post.addEventListener('mouseleave', () => {
-            mouseEntered = false;
-        });
+        // 初始化CSS变量
+        post.style.setProperty('--mouse-x', '50%');
+        post.style.setProperty('--mouse-y', '50%');
     });
     
     // 为"探索更多"按钮添加圆形扩散效果
     const ctaButton = document.getElementById('exploreBtn');
     if (ctaButton) {
-        // 添加一个标志来跟踪是否已经设置了鼠标位置
-        let mouseEntered = false;
-        
-        ctaButton.addEventListener('mouseenter', (e) => {
-            // 只在第一次进入时设置鼠标位置
-            if (!mouseEntered) {
-                // 获取鼠标相对于按钮元素的位置
-                const rect = ctaButton.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // 设置圆形扩散效果的起始位置
-                ctaButton.style.setProperty('--mouse-x', `${x}px`);
-                ctaButton.style.setProperty('--mouse-y', `${y}px`);
-                
-                // 标记已设置位置
-                mouseEntered = true;
-            }
+        ctaButton.addEventListener('mousemove', (e) => {
+            // 获取鼠标相对于按钮元素的位置
+            const rect = ctaButton.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // 设置圆形扩散效果的起始位置
+            ctaButton.style.setProperty('--mouse-x', `${x}px`);
+            ctaButton.style.setProperty('--mouse-y', `${y}px`);
         });
         
-        // 当鼠标离开时重置标志
-        ctaButton.addEventListener('mouseleave', () => {
-            mouseEntered = false;
-        });
+        // 初始化CSS变量
+        ctaButton.style.setProperty('--mouse-x', '50%');
+        ctaButton.style.setProperty('--mouse-y', '50%');
     }
 });
