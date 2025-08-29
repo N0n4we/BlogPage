@@ -5,6 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About - Noname's Blog</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+      .markdown-content {
+        font-size: 1.15rem;
+        line-height: 1.7;
+      }
+      
+      .markdown-content h1 {
+        font-size: 2.2rem;
+        margin-bottom: 1.8rem;
+        color: var(--section-title-color);
+        text-align: center;
+        font-weight: 400;
+      }
+      
+      .markdown-content h2 {
+        font-size: 1.6rem;
+        margin: 2.2rem 0 1.2rem;
+        color: var(--section-title-color);
+        font-weight: 500;
+      }
+      
+      .markdown-content p {
+        margin-bottom: 1.2rem;
+      }
+      
+      .markdown-content ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+      
+      .markdown-content li {
+        background-color: transparent;
+        margin: 0;
+        padding: 0.25rem 0;
+        border-radius: 0;
+        font-weight: 500;
+      }
+    </style>
   </head>
   <body>
     <header class="header">
@@ -21,28 +59,42 @@
     <main class="main">
       <section class="about-section">
         <div class="container">
-          <h2 class="section-title" data-aos="fade-up">关于我</h2>
-          <div class="about-content" data-aos="fade-up" data-aos-delay="100">
-            <p>null</p>
-            <h3 class="section-subtitle" data-aos="fade-up" data-aos-delay="200">我的经历</h3>
-            <p>void</p>
-            <h3 class="section-subtitle" data-aos="fade-up" data-aos-delay="200">我的成就</h3>
-            <ul class="achievements-list">
-              <li>none</li>
-            </ul>
-          </div>
-          <h3 class="section-subtitle" data-aos="fade-up" data-aos-delay="200">我的技能</h3>
-          <ul class="skills-list" data-aos="fade-up" data-aos-delay="300">
-            <li>nil</li>
-          </ul>
+          <div id="markdown-content" class="markdown-content"></div>
         </div>
       </section>
     </main>
     <footer class="footer">
       <div class="container">
-        <p>&copy; 保留所有权利😋</p>
+        <p>&copy; 保留所有权利.😋</p>
       </div>
     </footer>
-    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      const markdownContent = `
+# 关于我
+
+**void**
+
+## 我的经历
+
+null
+
+## 我的成就
+
+- *none*
+
+## 我的技能
+
+- nil
+`;
+
+      document.addEventListener('DOMContentLoaded', function() {
+        try {
+          document.getElementById('markdown-content').innerHTML = marked.parse(markdownContent);
+        } catch (error) {
+          console.error('Error parsing Markdown:', error);
+        }
+      });
+    </script>
   </body>
 </html>

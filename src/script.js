@@ -1,6 +1,8 @@
 // script.js
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 移除了旧的Markdown渲染代码，因为关于页面现在完全使用新的Markdown加载方式
+    
     // 为导航链接添加平滑滚动效果（仅在首页有效）
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
