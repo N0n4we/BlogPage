@@ -91,53 +91,7 @@ function extractPostInfo(markdown) {
     return { title, excerpt, content };
 }
 
-// Function to load blog post detail
-async function loadBlogPostDetail() {
-    try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const file = urlParams.get('file');
-        
-        if (!file) {
-            console.error('No file parameter found');
-            return;
-        }
-        
-        const response = await fetch(`./blogs/${file}`);
-        if (!response.ok) {
-            throw new Error(`Failed to load ${file}`);
-        }
-        
-        const markdown = await response.text();
-        const { title, content } = extractPostInfo(markdown);
-        
-        // Convert markdown to HTML with code highlighting
-        const htmlContent = markdownToHTML(content);
-        
-        // Update page title
-        document.title = `${title} - Noname's Blog`;
-        
-        // Display content
-        const contentContainer = document.querySelector('.blog-post-content');
-        if (contentContainer) {
-            contentContainer.innerHTML = `
-                <h1>${title}</h1>
-                <div class="post-content">
-                    ${htmlContent}
-                </div>
-            `;
-            
-            // Apply syntax highlighting to code blocks
-            Prism.highlightAllUnder(contentContainer);
-        }
-        
-    } catch (error) {
-        console.error('Error loading blog post detail:', error);
-        const contentContainer = document.querySelector('.blog-post-content');
-        if (contentContainer) {
-            contentContainer.innerHTML = '<p>加载博客文章时出错，请稍后再试。</p>';
-        }
-    }
-}
+
 
 
 
@@ -163,6 +117,11 @@ async function getBlogFilesList() {
         }
     } catch (error) {
         console.error('Error fetching directory listing:', error);
+        // 如果fetch失败，使用硬编码的文件列表作为回退
+        return [
+            '20250830-post1.md',
+            '20250831-syntax-test.md'
+        ];
     }
     
     return [];
@@ -186,7 +145,7 @@ async function loadBlogPosts() {
         
         if (markdownFiles.length === 0) {
             blogPostsContainer.innerHTML = `
-                <div class="no-posts-message">
+                <div>
                     <h3>暂无博客文章</h3>
                     <p>在 ./blogs/ 目录下添加 .md 文件来创建博客文章</p>
                 </div>
@@ -227,10 +186,15 @@ async function loadBlogPosts() {
                 }
                 
                 postElement.innerHTML = `
-                    <h3>${title}</h3>
-                    <p class="post-meta">发布于 ${fileDate}</p>
-                    <p>${excerpt}</p>
-                    <a href="#" class="read-more" data-file="${file}">阅读更多</a>
+                    <div class="post-content-wrapper">
+                        <h3>${title}</h3>
+                        <p class="post-meta">发布于 ${fileDate}</p>
+                        <a href="#" class="read-more" data-file="${file}">阅读</a>
+                        <div class="post-full-content" style="display: none;">
+                            <pre class="markdown-content"><code class="language-markdown"></code></pre>
+                            <a href="#" class="collapse-post">收起</a>
+                        </div>
+                    </div>
                 `;
                 
                 blogPostsContainer.appendChild(postElement);
@@ -242,10 +206,63 @@ async function loadBlogPosts() {
         
         // Re-attach event listeners for new posts
         attachPostEventListeners();
-        
     } catch (error) {
         console.error('Error loading blog posts:', error);
     }
+}
+
+// Function to expand blog post
+async function expandPost(readMoreLink, filename) {
+    try {
+        const post = readMoreLink.closest('.post');
+        const fullContentDiv = post.querySelector('.post-full-content');
+        const codeElement = fullContentDiv.querySelector('code');
+        
+        // Check if already loaded
+        if (codeElement.textContent.trim()) {
+            fullContentDiv.style.display = 'block';
+            readMoreLink.style.display = 'none';
+            return;
+        }
+        
+        // Load markdown content
+        const response = await fetch(`./blogs/${filename}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load ${filename}`);
+        }
+        
+        const markdown = await response.text();
+        codeElement.textContent = markdown;
+        
+        // Show full content and hide read more link
+        fullContentDiv.style.display = 'block';
+        readMoreLink.style.display = 'none';
+        
+        // Apply syntax highlighting
+        setTimeout(() => {
+            if (typeof Prism !== 'undefined') {
+                // 确保语言正确设置
+                codeElement.className = 'language-markdown';
+                
+                // 应用高亮
+                Prism.highlightElement(codeElement);
+            }
+        }, 200);
+        
+    } catch (error) {
+        console.error('Error expanding post:', error);
+        alert('加载博客内容时出错，请稍后再试。');
+    }
+}
+
+// Function to collapse blog post
+function collapsePost(collapseLink) {
+    const post = collapseLink.closest('.post');
+    const fullContentDiv = post.querySelector('.post-full-content');
+    const readMoreLink = post.querySelector('.read-more');
+    
+    fullContentDiv.style.display = 'none';
+    readMoreLink.style.display = 'inline-block';
 }
 
 // Function to attach event listeners to posts
@@ -269,25 +286,28 @@ function attachPostEventListeners() {
     // Add click event to read more links
     const readMoreLinks = document.querySelectorAll('.read-more');
     readMoreLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
+        link.addEventListener('click', async (e) => {
             e.preventDefault();
             const file = link.getAttribute('data-file');
             if (file) {
-                // Navigate to blog detail page with file parameter
-                window.location.href = `blog-detail.html?file=${encodeURIComponent(file)}`;
+                await expandPost(link, file);
             }
+        });
+    });
+    
+    // Add click event to collapse links
+    const collapseLinks = document.querySelectorAll('.collapse-post');
+    collapseLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            collapsePost(link);
         });
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if we're on the blog detail page
-    if (window.location.pathname.includes('blog-detail.html')) {
-        loadBlogPostDetail();
-    } else {
-        // Load blog posts on homepage
-        loadBlogPosts();
-    }
+    // Load blog posts on homepage
+    loadBlogPosts();
     
 
 

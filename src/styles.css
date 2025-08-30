@@ -42,6 +42,12 @@
   --surface-color: #3c3836;
   /* dark1 */
 
+  /* 悬停效果颜色 */
+  --hover-background: #ebdbb2;
+  /* 亮色背景 */
+  --hover-text: #282828;
+  /* 暗色文字 */
+
   /* 成功/确认颜色 */
   --success-color: #b8bb26;
   /* bright_green */
@@ -56,11 +62,7 @@
   --warning-color: #fb4934;
   /* bright_red */
 
-  /* 悬停效果颜色 */
-  --hover-background: #ebdbb2;
-  /* 亮色背景 */
-  --hover-text: #282828;
-  /* 暗色文字 */
+
 }
 
 /* 基础样式重置 */
@@ -205,78 +207,30 @@ body {
   opacity: 0.9;
 }
 
-.cta-button {
-  margin-top: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  background-color: var(--button-background);
-  color: var(--button-text);
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 添加颜色过渡效果 */
-}
 
-/* 圆形扩散效果的伪元素 */
-.cta-button::before {
-  content: '';
-  position: absolute;
-  background-color: var(--hover-background);
-  /* 亮色背景 */
-  border-radius: 50%;
-  transform: scale(0);
-  transition: transform 2.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-  /* 调整动画时间和贝塞尔曲线 */
-  z-index: -1;
-  pointer-events: none;
-  left: var(--mouse-x, 50%);
-  top: var(--mouse-y, 50%);
-  width: 100vmax;
-  height: 100vmax;
-  transform: translate(-50%, -50%) scale(0);
-}
-
-/* 默认状态下显示原来的背景色 */
-.cta-button {
-  background-color: var(--button-background);
-  position: relative;
-  overflow: hidden;
-}
-
-/* 鼠标悬停时触发亮色圆形扩散效果 */
-.cta-button:hover::before {
-  transform: translate(-50%, -50%) scale(3);
-  /* 调整缩放比例 */
-  transition: transform 2.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
-/* 鼠标悬停时改变文字颜色为暗色 */
-.cta-button:hover {
-  color: var(--hover-text);
-  /* 暗色文字 */
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 调整动画时间从1s到1.5s */
-}
 
 
 
 /* 博客文章列表样式 */
+.blog-posts {
+  width: 100%;
+  padding: 0;
+}
+
 .blog-posts .container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .post {
   background-color: var(--post-background);
-  padding: 1.7rem;
-  border-radius: 4px;
+  padding: 0;
+  border-radius: 0;
   border: none;
   /* 去除边框线 */
   box-shadow: none;
@@ -289,7 +243,58 @@ body {
   /* 默认文字颜色 */
   transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
   /* 调整动画时间从1s到1.5s */
+  width: 100%;
+  margin: 0;
 }
+
+.post-content-wrapper {
+  padding: 1.7rem 2rem;
+}
+
+/* 展开的博客全文样式 */
+.post-full-content {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.5rem;
+}
+
+.post-full-content .markdown-content {
+  background-color: var(--code-background);
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  padding: 0;
+  margin: 1rem 0;
+  font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.post-full-content .markdown-content code {
+  background-color: transparent !important;
+  color: var(--text-color);
+  padding: 1.5rem;
+  display: block;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.collapse-post {
+  display: inline-block;
+  color: var(--link-color);
+  text-decoration: none;
+  font-weight: 500;
+  margin-top: 1rem;
+  transition: color 0.3s ease;
+}
+
+.collapse-post:hover {
+  color: var(--link-hover-color);
+}
+
+
 
 /* 圆形扩散效果的伪元素 */
 .post::before {
@@ -339,6 +344,13 @@ body {
   /* 调整动画时间从1s到1.5s */
 }
 
+.post:hover .read-more {
+  color: var(--hover-text);
+  /* 暗色链接 */
+  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+  /* 调整动画时间从1s到1.5s */
+}
+
 .post:hover .post-meta {
   color: var(--hover-text);
   /* 暗色元数据 */
@@ -346,12 +358,7 @@ body {
   /* 调整动画时间从1s到1.5s */
 }
 
-.post:hover .read-more {
-  color: var(--hover-text);
-  /* 暗色链接 */
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 调整动画时间从1s到1.5s */
-}
+
 
 .post h3 {
   font-size: 1.6rem;
@@ -379,13 +386,18 @@ body {
   display: inline-block;
   color: var(--link-color);
   text-decoration: none;
-  font-weight: 500;
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 调整动画时间和贝塞尔曲线 */
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--link-color);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  background-color: transparent;
 }
 
 .read-more:hover {
-  color: var(--link-hover-color);
+  color: var(--hover-text);
+  background-color: var(--link-color);
+  border-color: var(--link-color);
 }
 
 /* 关于页面样式 */
