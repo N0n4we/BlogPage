@@ -230,7 +230,7 @@ async function loadBlogPosts() {
                         <h3>${title}</h3>
                         <p class="post-meta">发布于 ${fileDate}</p>
                         <a href="#" class="read-more" data-file="${file}">阅读</a>
-                        <div class="post-full-content" style="display: none;">
+                        <div class="post-full-content">
                             <div class="rendered-content"></div>
                             <a href="#" class="collapse-post">收起</a>
                         </div>
@@ -260,7 +260,8 @@ async function expandPost(readMoreLink, filename) {
         
         // Check if already loaded
         if (renderedContentDiv.innerHTML.trim()) {
-            fullContentDiv.style.display = 'block';
+            // 触发展开动画
+            fullContentDiv.classList.add('expanded');
             readMoreLink.style.display = 'none';
             return;
         }
@@ -277,9 +278,13 @@ async function expandPost(readMoreLink, filename) {
         const htmlContent = markdownToHTML(markdown);
         renderedContentDiv.innerHTML = htmlContent;
         
-        // Show full content and hide read more link
-        fullContentDiv.style.display = 'block';
+        // 隐藏"阅读"按钮并触发展开动画
         readMoreLink.style.display = 'none';
+        
+        // 使用requestAnimationFrame确保DOM更新后再添加动画类
+        requestAnimationFrame(() => {
+            fullContentDiv.classList.add('expanded');
+        });
         
         // Apply syntax highlighting to code blocks
         setTimeout(() => {
@@ -303,8 +308,13 @@ function collapsePost(collapseLink) {
     const fullContentDiv = post.querySelector('.post-full-content');
     const readMoreLink = post.querySelector('.read-more');
     
-    fullContentDiv.style.display = 'none';
-    readMoreLink.style.display = 'inline-block';
+    // 移除展开类，触发收起动画
+    fullContentDiv.classList.remove('expanded');
+    
+    // 等待动画完成后显示"阅读"按钮
+    setTimeout(() => {
+        readMoreLink.style.display = 'inline-block';
+    }, 600); // 与CSS动画时长匹配
 }
 
 // Function to attach event listeners to posts

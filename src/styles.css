@@ -256,6 +256,17 @@ body {
   margin-top: 1.5rem;
   border-top: 1px solid var(--border-color);
   padding-top: 1.5rem;
+  /* 动画相关样式 */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.6s ease-out, opacity 0.4s ease-out;
+}
+
+/* 展开状态的样式 */
+.post-full-content.expanded {
+  max-height: 2000px; /* 足够大的值来容纳内容 */
+  opacity: 1;
 }
 
 .post-full-content .rendered-content {
