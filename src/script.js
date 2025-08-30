@@ -1,59 +1,98 @@
-// Simple markdown to HTML converter
+// Enhanced markdown to HTML converter
 function markdownToHTML(markdown) {
     let html = markdown;
+    
+    // Escape HTML entities first
+    html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    
+    // Code blocks with language support (must come before other processing)
+    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+        const langClass = language ? ` class="language-${language}"` : '';
+        return `<pre><code${langClass}>${code.trim()}</code></pre>`;
+    });
+    
+    // Inline code (must come before other text processing)
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     
     // Headers
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+    html = html.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
+    html = html.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
     
-    // Bold
+    // Bold and italic (order matters)
+    html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Italic
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
     
     // Strikethrough
     html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
     
-    // Code blocks with language support
-    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
-        const langClass = language ? ` class="language-${language}"` : '';
-        return `<pre><code${langClass}>${code.trim()}</code></pre>`;
-    });
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     
-    // Horizontal rules (must come before paragraphs)
+    // Horizontal rules
     html = html.replace(/^---\s*$/gm, '<hr>');
     
-    // Links
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    // Process lists
+    html = processLists(html);
     
-    // Lists
-    html = html.replace(/^\d+\. (.*$)/gim, '<ol-li>$1</ol-li>');
-    html = html.replace(/^- (.*$)/gim, '<ul-li>$1</ul-li>');
-    
-    // Wrap lists in ul/ol tags
-    html = html.replace(/(<ol-li>.*<\/ol-li>)/s, (match) => {
-        const items = match.replace(/<ol-li>/g, '<li>').replace(/<\/ol-li>/g, '</li>');
-        return `<ol>${items}</ol>`;
-    });
-    html = html.replace(/(<ul-li>.*<\/ul-li>)/s, (match) => {
-        const items = match.replace(/<ul-li>/g, '<li>').replace(/<\/ul-li>/g, '</li>');
-        return `<ul>${items}</ul>`;
-    });
-    
-    // Paragraphs
+    // Paragraphs (split by double newlines and wrap non-HTML content)
     html = html.split('\n\n').map(paragraph => {
         paragraph = paragraph.trim();
-        if (paragraph && !paragraph.match(/^<[hu]/)) {
+        if (paragraph && !paragraph.match(/^<(h[1-6]|hr|pre|ul|ol|blockquote)/)) {
+            // Handle single line breaks within paragraphs
+            paragraph = paragraph.replace(/\n/g, '<br>');
             return `<p>${paragraph}</p>`;
         }
         return paragraph;
-    }).join('\n');
+    }).join('\n\n');
     
     return html;
+}
+
+// Helper function to process lists
+function processLists(html) {
+    const lines = html.split('\n');
+    const result = [];
+    let i = 0;
+    
+    while (i < lines.length) {
+        const line = lines[i];
+        
+        // Check for ordered list
+        if (line.match(/^\d+\.\s/)) {
+            const listItems = [];
+            while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
+                listItems.push(lines[i].replace(/^\d+\.\s/, ''));
+                i++;
+            }
+            result.push('<ol>');
+            listItems.forEach(item => result.push(`<li>${item}</li>`));
+            result.push('</ol>');
+            continue;
+        }
+        
+        // Check for unordered list
+        if (line.match(/^-\s/)) {
+            const listItems = [];
+            while (i < lines.length && lines[i].match(/^-\s/)) {
+                listItems.push(lines[i].replace(/^-\s/, ''));
+                i++;
+            }
+            result.push('<ul>');
+            listItems.forEach(item => result.push(`<li>${item}</li>`));
+            result.push('</ul>');
+            continue;
+        }
+        
+        result.push(line);
+        i++;
+    }
+    
+    return result.join('\n');
 }
 
 // Function to extract title and excerpt from markdown
@@ -109,7 +148,8 @@ async function getBlogFilesList() {
                 .map(link => link.getAttribute('href'))
                 .filter(href => href && href.endsWith('.md'))
                 .map(href => href.replace('./', ''))
-                .sort();
+                .sort()
+                .reverse(); // Sort in descending order (newest first)
             
             if (files.length > 0) {
                 return files;
@@ -119,8 +159,8 @@ async function getBlogFilesList() {
         console.error('Error fetching directory listing:', error);
         // 如果fetch失败，使用硬编码的文件列表作为回退
         return [
-            '20250830-post1.md',
-            '20250831-syntax-test.md'
+            '20250831-syntax-test.md',
+            '20250830-post1.md'
         ];
     }
     
@@ -191,7 +231,7 @@ async function loadBlogPosts() {
                         <p class="post-meta">发布于 ${fileDate}</p>
                         <a href="#" class="read-more" data-file="${file}">阅读</a>
                         <div class="post-full-content" style="display: none;">
-                            <pre class="markdown-content"><code class="language-markdown"></code></pre>
+                            <div class="rendered-content"></div>
                             <a href="#" class="collapse-post">收起</a>
                         </div>
                     </div>
@@ -216,10 +256,10 @@ async function expandPost(readMoreLink, filename) {
     try {
         const post = readMoreLink.closest('.post');
         const fullContentDiv = post.querySelector('.post-full-content');
-        const codeElement = fullContentDiv.querySelector('code');
+        const renderedContentDiv = fullContentDiv.querySelector('.rendered-content');
         
         // Check if already loaded
-        if (codeElement.textContent.trim()) {
+        if (renderedContentDiv.innerHTML.trim()) {
             fullContentDiv.style.display = 'block';
             readMoreLink.style.display = 'none';
             return;
@@ -232,22 +272,24 @@ async function expandPost(readMoreLink, filename) {
         }
         
         const markdown = await response.text();
-        codeElement.textContent = markdown;
+        
+        // Convert markdown to HTML
+        const htmlContent = markdownToHTML(markdown);
+        renderedContentDiv.innerHTML = htmlContent;
         
         // Show full content and hide read more link
         fullContentDiv.style.display = 'block';
         readMoreLink.style.display = 'none';
         
-        // Apply syntax highlighting
+        // Apply syntax highlighting to code blocks
         setTimeout(() => {
             if (typeof Prism !== 'undefined') {
-                // 确保语言正确设置
-                codeElement.className = 'language-markdown';
-                
-                // 应用高亮
-                Prism.highlightElement(codeElement);
+                const codeBlocks = renderedContentDiv.querySelectorAll('pre code[class*="language-"]');
+                codeBlocks.forEach(codeBlock => {
+                    Prism.highlightElement(codeBlock);
+                });
             }
-        }, 200);
+        }, 100);
         
     } catch (error) {
         console.error('Error expanding post:', error);
