@@ -1,3 +1,12 @@
+let currentlyExpandedPost = null;
+
+// ✅ New function to handle clicks outside the expanded post
+function handleOutsideClick(event) {
+    if (currentlyExpandedPost && !currentlyExpandedPost.contains(event.target)) {
+        collapsePost(currentlyExpandedPost);
+    }
+}
+
 // Helper function to convert filename slug to a readable title
 function slugToTitle(slug) {
     return slug
@@ -103,8 +112,6 @@ function processLists(html) {
     return result.join('\n');
 }
 
-// 🔴 The extractPostInfo function is no longer needed and has been removed.
-
 // Function to get blog files list
 async function getBlogFilesList() {
     try {
@@ -128,19 +135,12 @@ async function getBlogFilesList() {
         }
     } catch (error) {
         console.error('Error fetching directory listing:', error);
-        // 如果fetch失败，使用硬编码的文件列表作为回退
-        return [
-            '20250831-syntax-test.md',
-            '20250830-post1.md'
-        ];
+        return [];
     }
     
     return [];
 }
 
-// =========================================================================
-// ✅ NEW: Rewritten function to load blog posts by parsing filenames
-// =========================================================================
 async function loadBlogPosts() {
     try {
         const blogPostsContainer = document.querySelector('.blog-posts .container');
@@ -151,7 +151,6 @@ async function loadBlogPosts() {
 
         blogPostsContainer.innerHTML = '';
 
-        // Get list of markdown files
         const markdownFiles = await getBlogFilesList();
 
         if (markdownFiles.length === 0) {
@@ -165,23 +164,19 @@ async function loadBlogPosts() {
             return;
         }
 
-        // Parse each filename to get metadata without fetching file content
         for (const file of markdownFiles) {
-            // Regex for YYYYMMDD-your-title.md format
             const match = file.match(/^(\d{8})-(.*)\.md$/);
 
             if (!match) {
                 console.warn(`Skipping file with invalid format: ${file}. Expected format: YYYYMMDD-title.md`);
-                continue; // Skip files that don't match the format
+                continue;
             }
 
-            const dateStr = match[1];      // "20250831"
-            const titleSlug = match[2];    // "syntax-test"
+            const dateStr = match[1];
+            const titleSlug = match[2];
             
-            // 1. Generate title from slug
             const title = slugToTitle(titleSlug);
 
-            // 2. Format the date for display
             let displayDate = 'Invalid Date';
             try {
                 const year = dateStr.substring(0, 4);
@@ -193,18 +188,17 @@ async function loadBlogPosts() {
                 console.warn(`Could not parse date from filename: ${file}`);
             }
 
-            // Create post element
             const postElement = document.createElement('article');
             postElement.className = 'post';
+            postElement.dataset.file = file;
             
+            // 🔴 Removed the collapse link
             postElement.innerHTML = `
                 <div class="post-content-wrapper">
                     <h3>${title}</h3>
                     <p class="post-meta">发布于 ${displayDate}</p>
-                    <a href="#" class="read-more" data-file="${file}">阅读</a>
                     <div class="post-full-content">
                         <div class="rendered-content"></div>
-                        <a href="#" class="collapse-post">收起</a>
                     </div>
                 </div>
             `;
@@ -212,7 +206,6 @@ async function loadBlogPosts() {
             blogPostsContainer.appendChild(postElement);
         }
         
-        // Re-attach event listeners for new posts
         attachPostEventListeners();
     } catch (error) {
         console.error('Error loading blog posts:', error);
@@ -220,42 +213,41 @@ async function loadBlogPosts() {
 }
 
 
-// Function to expand blog post
-async function expandPost(readMoreLink, filename) {
+// ✅ Function to expand blog post, updated to manage state
+async function expandPost(postElement) {
+    // Collapse any other open post first
+    if (currentlyExpandedPost && currentlyExpandedPost !== postElement) {
+        collapsePost(currentlyExpandedPost);
+    }
+    
     try {
-        const post = readMoreLink.closest('.post');
-        const fullContentDiv = post.querySelector('.post-full-content');
+        const filename = postElement.dataset.file;
+        const fullContentDiv = postElement.querySelector('.post-full-content');
         const renderedContentDiv = fullContentDiv.querySelector('.rendered-content');
         
-        // Check if already loaded
         if (renderedContentDiv.innerHTML.trim()) {
-            // 触发展开动画
             fullContentDiv.classList.add('expanded');
-            readMoreLink.style.display = 'none';
+            currentlyExpandedPost = postElement;
+            document.addEventListener('click', handleOutsideClick);
             return;
         }
         
-        // Load markdown content
         const response = await fetch(`./blogs/${filename}`);
         if (!response.ok) {
             throw new Error(`Failed to load ${filename}`);
         }
         
         const markdown = await response.text();
-        
-        // Convert markdown to HTML
         const htmlContent = markdownToHTML(markdown);
         renderedContentDiv.innerHTML = htmlContent;
         
-        // 隐藏"阅读"按钮并触发展开动画
-        readMoreLink.style.display = 'none';
-        
-        // 使用requestAnimationFrame确保DOM更新后再添加动画类
         requestAnimationFrame(() => {
             fullContentDiv.classList.add('expanded');
+            // Set the current post and add the global listener
+            currentlyExpandedPost = postElement;
+            document.addEventListener('click', handleOutsideClick);
         });
         
-        // Apply syntax highlighting to code blocks
         setTimeout(() => {
             if (typeof Prism !== 'undefined') {
                 const codeBlocks = renderedContentDiv.querySelectorAll('pre code[class*="language-"]');
@@ -271,72 +263,53 @@ async function expandPost(readMoreLink, filename) {
     }
 }
 
-// Function to collapse blog post
-function collapsePost(collapseLink) {
-    const post = collapseLink.closest('.post');
-    const fullContentDiv = post.querySelector('.post-full-content');
-    const readMoreLink = post.querySelector('.read-more');
+// ✅ Function to collapse blog post, now takes the post element
+function collapsePost(postElement) {
+    const fullContentDiv = postElement.querySelector('.post-full-content');
     
-    // 移除展开类，触发收起动画
-    fullContentDiv.classList.remove('expanded');
-    
-    // 等待动画完成后显示"阅读"按钮
-    setTimeout(() => {
-        readMoreLink.style.display = 'inline-block';
-    }, 600); // 与CSS动画时长匹配
+    if (fullContentDiv) {
+        fullContentDiv.classList.remove('expanded');
+    }
+
+    // Clear state and remove global listener
+    currentlyExpandedPost = null;
+    document.removeEventListener('click', handleOutsideClick);
 }
 
-// Function to attach event listeners to posts
+// ✅ Function to attach event listeners, updated for the new interaction model
 function attachPostEventListeners() {
-    // Add circular ripple effect to posts
     const posts = document.querySelectorAll('.post');
     posts.forEach(post => {
+        // Ripple effect listener remains the same
         post.addEventListener('mousemove', (e) => {
             const rect = post.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-            
             post.style.setProperty('--mouse-x', `${x}px`);
             post.style.setProperty('--mouse-y', `${y}px`);
         });
         
         post.style.setProperty('--mouse-x', '50%');
         post.style.setProperty('--mouse-y', '50%');
-    });
-    
-    // Add click event to read more links
-    const readMoreLinks = document.querySelectorAll('.read-more');
-    readMoreLinks.forEach(link => {
-        link.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const file = link.getAttribute('data-file');
-            if (file) {
-                await expandPost(link, file);
+        
+        // Add click listener to the entire post element to expand it
+        post.addEventListener('click', async (e) => {
+            const fullContentDiv = post.querySelector('.post-full-content');
+            // Only expand if it's not already expanded
+            if (!fullContentDiv.classList.contains('expanded')) {
+                await expandPost(post);
             }
-        });
-    });
-    
-    // Add click event to collapse links
-    const collapseLinks = document.querySelectorAll('.collapse-post');
-    collapseLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            collapsePost(link);
         });
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Load blog posts on homepage
     loadBlogPosts();
     
-    // Logo折叠动画
     const logo = document.querySelector('.logo');
     let isFolded = false;
 
-    // 检查滚动位置并触发动画
     function checkScrollPosition() {
-        // 当滚动超过100px时触发动画
         if (window.scrollY > 100 && !isFolded) {
             logo.classList.add('folded');
             isFolded = true;
@@ -346,9 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 监听滚动事件
     window.addEventListener('scroll', checkScrollPosition);
-    
-    // 初始化检查
     checkScrollPosition();
 });
