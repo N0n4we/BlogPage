@@ -1,3 +1,11 @@
+// Helper function to convert filename slug to a readable title
+function slugToTitle(slug) {
+    return slug
+        .split('-') // 按 '-' 分割
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // 每个单词首字母大写
+        .join(' '); // 用空格连接
+}
+
 // Enhanced markdown to HTML converter
 function markdownToHTML(markdown) {
     let html = markdown;
@@ -95,44 +103,7 @@ function processLists(html) {
     return result.join('\n');
 }
 
-// Function to extract title and excerpt from markdown
-function extractPostInfo(markdown) {
-    const lines = markdown.split('\n');
-    let title = '';
-    let excerpt = '';
-    let content = '';
-    
-    // Extract title (first h1)
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line.startsWith('# ')) {
-            title = line.substring(2);
-            // Start content from the line after title
-            content = lines.slice(i + 1).join('\n');
-            break;
-        }
-    }
-    
-    // If no h1 found, use first non-empty line as title
-    if (!title) {
-        for (let line of lines) {
-            if (line.trim()) {
-                title = line.trim();
-                break;
-            }
-        }
-    }
-    
-    // Generate excerpt from first few paragraphs
-    const paragraphs = content.split('\n\n').filter(p => p.trim());
-    excerpt = paragraphs.slice(0, 2).join(' ').substring(0, 150) + '...';
-    
-    return { title, excerpt, content };
-}
-
-
-
-
+// 🔴 The extractPostInfo function is no longer needed and has been removed.
 
 // Function to get blog files list
 async function getBlogFilesList() {
@@ -167,9 +138,9 @@ async function getBlogFilesList() {
     return [];
 }
 
-
-
-// Function to load blog posts
+// =========================================================================
+// ✅ NEW: Rewritten function to load blog posts by parsing filenames
+// =========================================================================
 async function loadBlogPosts() {
     try {
         const blogPostsContainer = document.querySelector('.blog-posts .container');
@@ -177,71 +148,68 @@ async function loadBlogPosts() {
             console.error('Blog posts container not found');
             return;
         }
-        
+
         blogPostsContainer.innerHTML = '';
-        
+
         // Get list of markdown files
         const markdownFiles = await getBlogFilesList();
-        
+
         if (markdownFiles.length === 0) {
             blogPostsContainer.innerHTML = `
-                <div>
+                <div style="padding: 2rem;">
                     <h3>暂无博客文章</h3>
-                    <p>在 ./blogs/ 目录下添加 .md 文件来创建博客文章</p>
+                    <p>在 ./blogs/ 目录下添加 .md 文件来创建博客文章。</p>
+                    <p>文件名格式推荐: <code>YYYYMMDD-your-title.md</code></p>
                 </div>
             `;
             return;
         }
-        
-        // Load each discovered file
+
+        // Parse each filename to get metadata without fetching file content
         for (const file of markdownFiles) {
-            try {
-                const response = await fetch(`./blogs/${file}`);
-                if (!response.ok) continue;
-                
-                const markdown = await response.text();
-                const { title, excerpt } = extractPostInfo(markdown);
-                
-                // Create post element
-                const postElement = document.createElement('article');
-                postElement.className = 'post';
-                postElement.setAttribute('data-aos', 'fade-up');
-                
-                // Extract date from filename (first 8 digits before the first "-")
-                const dateMatch = file.match(/^(\d{8})-/);
-                let fileDate = new Date().toLocaleDateString('zh-CN'); // fallback
-                
-                if (dateMatch) {
-                    const dateStr = dateMatch[1]; // e.g., "20250830"
-                    const year = dateStr.substring(0, 4);
-                    const month = dateStr.substring(4, 6);
-                    const day = dateStr.substring(6, 8);
-                    
-                    try {
-                        const date = new Date(year, month - 1, day); // month is 0-based
-                        fileDate = date.toLocaleDateString('zh-CN');
-                    } catch (error) {
-                        console.warn(`Invalid date format in filename: ${file}`);
-                    }
-                }
-                
-                postElement.innerHTML = `
-                    <div class="post-content-wrapper">
-                        <h3>${title}</h3>
-                        <p class="post-meta">发布于 ${fileDate}</p>
-                        <a href="#" class="read-more" data-file="${file}">阅读</a>
-                        <div class="post-full-content">
-                            <div class="rendered-content"></div>
-                            <a href="#" class="collapse-post">收起</a>
-                        </div>
-                    </div>
-                `;
-                
-                blogPostsContainer.appendChild(postElement);
-                
-            } catch (error) {
-                // Skip file on error
+            // Regex for YYYYMMDD-your-title.md format
+            const match = file.match(/^(\d{8})-(.*)\.md$/);
+
+            if (!match) {
+                console.warn(`Skipping file with invalid format: ${file}. Expected format: YYYYMMDD-title.md`);
+                continue; // Skip files that don't match the format
             }
+
+            const dateStr = match[1];      // "20250831"
+            const titleSlug = match[2];    // "syntax-test"
+            
+            // 1. Generate title from slug
+            const title = slugToTitle(titleSlug);
+
+            // 2. Format the date for display
+            let displayDate = 'Invalid Date';
+            try {
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(4, 6);
+                const day = dateStr.substring(6, 8);
+                const date = new Date(year, month - 1, day);
+                displayDate = date.toLocaleDateString('zh-CN');
+            } catch (e) {
+                console.warn(`Could not parse date from filename: ${file}`);
+            }
+
+            // Create post element
+            const postElement = document.createElement('article');
+            postElement.className = 'post';
+            
+            postElement.innerHTML = `
+                <div class="post-content-wrapper">
+                    <h3>${title}</h3>
+                    <p class="post-meta">发布于 ${displayDate}</p>
+                    <a href="#" class="read-more" data-file="${file}">阅读</a>
+                    <div class="post-full-content">
+                        <div class="rendered-content"></div>
+                        <a href="#" class="collapse-post">收起</a>
+                    </div>
+                </div>
+            `;
+            
+            blogPostsContainer.appendChild(postElement);
         }
         
         // Re-attach event listeners for new posts
@@ -250,6 +218,7 @@ async function loadBlogPosts() {
         console.error('Error loading blog posts:', error);
     }
 }
+
 
 // Function to expand blog post
 async function expandPost(readMoreLink, filename) {
@@ -361,8 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load blog posts on homepage
     loadBlogPosts();
     
-
-
     // Logo折叠动画
     const logo = document.querySelector('.logo');
     let isFolded = false;
