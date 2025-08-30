@@ -24,6 +24,9 @@ function markdownToHTML(markdown) {
     });
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     
+    // Horizontal rules (must come before paragraphs)
+    html = html.replace(/^---\s*$/gm, '<hr>');
+    
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
     
