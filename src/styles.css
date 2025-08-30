@@ -1,5 +1,3 @@
-/* styles.css */
-
 /* CSS变量定义 - 使用Gruvbox Dark主题 */
 :root {
   /* 背景色系列 */
@@ -47,6 +45,12 @@
   /* 成功/确认颜色 */
   --success-color: #b8bb26;
   /* bright_green */
+
+  /* 代码高亮颜色 */
+  --code-background: #1d2021;
+  --code-border: #665c54;
+  --inline-code-background: #504945;
+  --inline-code-color: #fe8019;
 
   /* 警告/错误颜色 */
   --warning-color: #fb4934;
@@ -111,14 +115,14 @@ body {
 }
 
 .logo-part-n4w3 {
-  -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 100%, rgba(0,0,0,0) 100%);
-  mask-image: linear-gradient(to right, rgba(0,0,0,1) 100%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 1) 100%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to right, rgba(0, 0, 0, 1) 100%, rgba(0, 0, 0, 0) 100%);
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   transition: mask-size 0.6s cubic-bezier(0.645, 0.045, 0.355, 1),
-              -webkit-mask-size 0.6s cubic-bezier(0.645, 0.045, 0.355, 1);
+    -webkit-mask-size 0.6s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 /* 折叠状态 */
@@ -260,9 +264,7 @@ body {
   /* 调整动画时间从1s到1.5s */
 }
 
-.cta-button:hover {
-  background-color: var(--list-item-background);
-}
+
 
 /* 博客文章列表样式 */
 .blog-posts .container {
@@ -411,85 +413,9 @@ body {
   font-weight: 500;
 }
 
-/* 移除了技能列表和成就列表的特定样式，因为现在使用Markdown统一处理 */
 
-/* 联系页面样式 */
-.contact-section {
-  padding: 2rem 0;
-}
 
-.contact-intro {
-  font-size: 1.2rem;
-  text-align: center;
-  margin-bottom: 2rem;
-}
 
-.contact-form {
-  background-color: var(--post-background);
-  padding: 2rem;
-  border-radius: 4px;
-  max-width: 600px;
-  margin: 0 auto 2rem;
-  border: 1px solid var(--border-color);
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 1rem;
-  background-color: var(--input-background);
-  color: var(--text-color);
-}
-
-.submit-btn {
-  background-color: var(--button-background);
-  color: var(--button-text);
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-.submit-btn:hover {
-  background-color: var(--list-item-background);
-}
-
-.contact-info h3 {
-  margin-bottom: 1rem;
-  color: var(--section-title-color);
-  font-weight: 500;
-}
-
-.contact-info p {
-  margin-bottom: 0.5rem;
-}
-
-.contact-info a {
-  color: var(--link-color);
-  text-decoration: none;
-}
-
-.contact-info a:hover {
-  text-decoration: underline;
-}
 
 /* 页脚样式 */
 .footer {
@@ -537,4 +463,167 @@ body {
   padding: 0.25rem 0;
   border-radius: 0;
   font-weight: 500;
+}
+
+/* 博客详情页面样式 */
+.blog-detail {
+  padding: 3rem 0;
+}
+
+.blog-detail .container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.blog-post-content {
+  background-color: var(--post-background);
+  padding: 2.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+}
+
+.blog-post-content h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+  color: var(--section-title-color);
+  text-align: center;
+  font-weight: 400;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+.post-content {
+  font-size: 1.15rem;
+  line-height: 1.8;
+  color: var(--text-color);
+}
+
+.post-content h2 {
+  font-size: 1.8rem;
+  margin: 2.5rem 0 1.5rem;
+  color: var(--section-title-color);
+  font-weight: 500;
+}
+
+.post-content h3 {
+  font-size: 1.4rem;
+  margin: 2rem 0 1rem;
+  color: var(--section-title-color);
+  font-weight: 500;
+}
+
+.post-content p {
+  margin-bottom: 1.5rem;
+  text-align: justify;
+}
+
+.post-content ul {
+  list-style-type: disc;
+  padding-left: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.post-content ol {
+  list-style-type: decimal;
+  padding-left: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.post-content li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.post-content blockquote {
+  border-left: 4px solid var(--link-color);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: var(--post-meta-color);
+}
+
+.post-content code {
+  background-color: var(--inline-code-background);
+  color: var(--inline-code-color);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.post-content pre {
+  background-color: var(--code-background);
+  padding: 1.5rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border: 1px solid var(--code-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.post-content pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+/* Prism.js 代码高亮样式覆盖 */
+.post-content pre[class*="language-"] {
+  background-color: var(--code-background);
+  border: 1px solid var(--code-border);
+}
+
+.post-content code[class*="language-"] {
+  background-color: transparent;
+  color: var(--text-color);
+}
+
+/* 代码块语言标签 */
+.post-content pre[class*="language-"]::before {
+  content: attr(class);
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: var(--code-border);
+  color: var(--post-meta-color);
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  border-bottom-left-radius: 4px;
+  border-top-right-radius: 6px;
+}
+
+.post-content pre {
+  position: relative;
+}
+
+.post-content strong {
+  color: var(--section-title-color);
+  font-weight: 600;
+}
+
+.post-content em {
+  font-style: italic;
+}
+
+.back-to-home {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.btn {
+  display: inline-block;
+  color: var(--link-color);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  color: var(--link-hover-color);
+  border-color: var(--link-hover-color);
+  background-color: var(--list-item-background);
 }
