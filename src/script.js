@@ -14,6 +14,9 @@ function markdownToHTML(markdown) {
     // Italic
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
     
+    // Strikethrough
+    html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
+    
     // Code blocks with language support
     html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
         const langClass = language ? ` class="language-${language}"` : '';
@@ -25,11 +28,18 @@ function markdownToHTML(markdown) {
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
     
     // Lists
-    html = html.replace(/^\d+\. (.*$)/gim, '<li>$1</li>');
-    html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
+    html = html.replace(/^\d+\. (.*$)/gim, '<ol-li>$1</ol-li>');
+    html = html.replace(/^- (.*$)/gim, '<ul-li>$1</ul-li>');
     
     // Wrap lists in ul/ol tags
-    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    html = html.replace(/(<ol-li>.*<\/ol-li>)/s, (match) => {
+        const items = match.replace(/<ol-li>/g, '<li>').replace(/<\/ol-li>/g, '</li>');
+        return `<ol>${items}</ol>`;
+    });
+    html = html.replace(/(<ul-li>.*<\/ul-li>)/s, (match) => {
+        const items = match.replace(/<ul-li>/g, '<li>').replace(/<\/ul-li>/g, '</li>');
+        return `<ul>${items}</ul>`;
+    });
     
     // Paragraphs
     html = html.split('\n\n').map(paragraph => {
