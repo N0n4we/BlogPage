@@ -195,7 +195,23 @@ async function loadBlogPosts() {
                 postElement.className = 'post';
                 postElement.setAttribute('data-aos', 'fade-up');
                 
-                const fileDate = new Date().toLocaleDateString('zh-CN');
+                // Extract date from filename (first 8 digits before the first "-")
+                const dateMatch = file.match(/^(\d{8})-/);
+                let fileDate = new Date().toLocaleDateString('zh-CN'); // fallback
+                
+                if (dateMatch) {
+                    const dateStr = dateMatch[1]; // e.g., "20250830"
+                    const year = dateStr.substring(0, 4);
+                    const month = dateStr.substring(4, 6);
+                    const day = dateStr.substring(6, 8);
+                    
+                    try {
+                        const date = new Date(year, month - 1, day); // month is 0-based
+                        fileDate = date.toLocaleDateString('zh-CN');
+                    } catch (error) {
+                        console.warn(`Invalid date format in filename: ${file}`);
+                    }
+                }
                 
                 postElement.innerHTML = `
                     <h3>${title}</h3>
