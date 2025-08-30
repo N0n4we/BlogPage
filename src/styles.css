@@ -61,8 +61,6 @@
   /* 警告/错误颜色 */
   --warning-color: #fb4934;
   /* bright_red */
-
-
 }
 
 html,
@@ -213,10 +211,6 @@ body {
   opacity: 0.9;
 }
 
-
-
-
-
 /* 博客文章列表样式 */
 .blog-posts {
   width: 100%;
@@ -238,21 +232,16 @@ body {
   padding: 0;
   border-radius: 0;
   border: none;
-  /* 去除边框线 */
   box-shadow: none;
-  /* 去除阴影 */
   position: relative;
   overflow: hidden;
   isolation: isolate;
   /* 创建新的堆叠上下文 */
   color: var(--text-color);
-  /* 默认文字颜色 */
   transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 调整动画时间从1s到1.5s */
   width: 100%;
   margin: 0;
   cursor: pointer;
-  /* ✅ Add pointer cursor to indicate it's clickable */
 }
 
 .post-content-wrapper {
@@ -261,7 +250,6 @@ body {
 
 /* 展开的博客全文样式 */
 .post-full-content {
-  /* 动画相关样式 */
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -403,27 +391,20 @@ body {
   margin: 1.5rem 0;
 }
 
-/* 🔴 Removed .collapse-post styles */
-
-
 /* 圆形扩散效果的伪元素 */
 .post::before {
   content: '';
   position: absolute;
   background-color: var(--hover-background);
-  /* 亮色背景 */
   border-radius: 50%;
   transform: scale(0);
   transition: transform 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
-  /* 调整动画时间和贝塞尔曲线 */
   z-index: -1;
   pointer-events: none;
   left: var(--mouse-x, 50%);
   top: var(--mouse-y, 50%);
   width: 100vmax;
-  /* 减小圆形初始大小 */
   height: 100vmax;
-  /* 减小圆形初始大小 */
   transform: translate(-50%, -50%) scale(0);
 }
 
@@ -437,31 +418,19 @@ body {
 /* 鼠标悬停时触发亮色圆形扩散效果 */
 .post:hover::before {
   transform: translate(-50%, -50%) scale(3);
-  /* 调整缩放比例 */
   transition: transform 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 鼠标悬停时改变文字颜色为暗色 */
 .post:hover {
   color: var(--hover-text);
-  /* 暗色文字 */
 }
 
-.post:hover h3 {
-  color: var(--hover-text);
-  /* 暗色标题 */
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 调整动画时间从1s到1.5s */
-}
-
+.post:hover h3,
 .post:hover .post-meta {
   color: var(--hover-text);
-  /* 暗色元数据 */
   transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 调整动画时间从1s到1.5s */
 }
-
-
 
 .post h3 {
   font-size: 1.6rem;
@@ -469,7 +438,6 @@ body {
   color: var(--section-title-color);
   font-weight: 500;
   transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
-  /* 添加过渡效果 */
 }
 
 .post-meta {
@@ -484,36 +452,10 @@ body {
   font-size: 1.05rem;
 }
 
-/* 🔴 Removed .read-more and .read-more:hover styles */
-
 /* 关于页面样式 */
 .about-section {
   padding: 1rem 0;
 }
-
-.section-title {
-  font-size: 2.2rem;
-  margin-bottom: 1.2rem;
-  color: var(--section-title-color);
-  text-align: center;
-  font-weight: 400;
-}
-
-.about-content p {
-  margin-bottom: 0.8rem;
-  font-size: 1.15rem;
-}
-
-.section-subtitle {
-  font-size: 1.6rem;
-  margin: 1.5rem 0 0.8rem;
-  color: var(--section-title-color);
-  font-weight: 500;
-}
-
-
-
-
 
 /* 页脚样式 */
 .footer {
@@ -565,167 +507,4 @@ body {
   padding: 0.25rem 0;
   border-radius: 0;
   font-weight: 500;
-}
-
-/* 博客详情页面样式 */
-.blog-detail {
-  padding: 1.5rem 0;
-}
-
-.blog-detail .container {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.blog-post-content {
-  background-color: var(--post-background);
-  padding: 1.5rem;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  margin-bottom: 1rem;
-}
-
-.blog-post-content h1 {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-  color: var(--section-title-color);
-  text-align: center;
-  font-weight: 400;
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 0.5rem;
-}
-
-.post-content {
-  font-size: 1.15rem;
-  line-height: 1.8;
-  color: var(--text-color);
-}
-
-.post-content h2 {
-  font-size: 1.8rem;
-  margin: 1.5rem 0 1rem;
-  color: var(--section-title-color);
-  font-weight: 500;
-}
-
-.post-content h3 {
-  font-size: 1.4rem;
-  margin: 1.2rem 0 0.8rem;
-  color: var(--section-title-color);
-  font-weight: 500;
-}
-
-.post-content p {
-  margin-bottom: 1rem;
-  text-align: justify;
-}
-
-.post-content ul {
-  list-style-type: disc;
-  padding-left: 2rem;
-  margin-bottom: 1rem;
-}
-
-.post-content ol {
-  list-style-type: decimal;
-  padding-left: 2rem;
-  margin-bottom: 1rem;
-}
-
-.post-content li {
-  margin-bottom: 0.5rem;
-  line-height: 1.6;
-}
-
-.post-content blockquote {
-  border-left: 4px solid var(--link-color);
-  padding-left: 1rem;
-  margin: 1rem 0;
-  font-style: italic;
-  color: var(--post-meta-color);
-}
-
-.post-content code {
-  background-color: var(--inline-code-background);
-  color: var(--inline-code-color);
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-}
-
-.post-content pre {
-  background-color: var(--code-background);
-  padding: 1rem;
-  border-radius: 6px;
-  overflow-x: auto;
-  margin: 1rem 0;
-  border: 1px solid var(--code-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.post-content pre code {
-  background-color: transparent;
-  padding: 0;
-  color: inherit;
-}
-
-/* Prism.js 代码高亮样式覆盖 */
-.post-content pre[class*="language-"] {
-  background-color: var(--code-background);
-  border: 1px solid var(--code-border);
-}
-
-.post-content code[class*="language-"] {
-  background-color: transparent;
-  color: var(--text-color);
-}
-
-/* 代码块语言标签 */
-.post-content pre[class*="language-"]::before {
-  content: attr(class);
-  position: absolute;
-  top: 0;
-  right: 0;
-  background-color: var(--code-border);
-  color: var(--post-meta-color);
-  padding: 0.2rem 0.5rem;
-  font-size: 0.8rem;
-  border-bottom-left-radius: 4px;
-  border-top-right-radius: 6px;
-}
-
-.post-content pre {
-  position: relative;
-}
-
-.post-content strong {
-  color: var(--section-title-color);
-  font-weight: 600;
-}
-
-.post-content em {
-  font-style: italic;
-}
-
-.back-to-home {
-  text-align: center;
-  margin-top: 2rem;
-}
-
-.btn {
-  display: inline-block;
-  color: var(--link-color);
-  text-decoration: none;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  transition: all 0.3s ease;
-}
-
-.btn:hover {
-  color: var(--link-hover-color);
-  border-color: var(--link-hover-color);
-  background-color: var(--list-item-background);
 }

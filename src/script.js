@@ -1,37 +1,37 @@
 let currentlyExpandedPost = null;
 
-// ✅ New function to handle clicks outside the expanded post
+// 处理在展开的文章外部的点击事件，用于折叠文章
 function handleOutsideClick(event) {
     if (currentlyExpandedPost && !currentlyExpandedPost.contains(event.target)) {
         collapsePost(currentlyExpandedPost);
     }
 }
 
-// Helper function to convert filename slug to a readable title
+// 将文件名 slug 转换为可读的标题
 function slugToTitle(slug) {
     return slug
-        .split('-') // 按 '-' 分割
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // 每个单词首字母大写
-        .join(' '); // 用空格连接
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
-// Enhanced markdown to HTML converter
+// 增强的 Markdown 到 HTML 转换器
 function markdownToHTML(markdown) {
     let html = markdown;
     
-    // Escape HTML entities first
+    // 首先转义 HTML 实体
     html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     
-    // Code blocks with language support (must come before other processing)
+    // 支持语言的代码块 (必须在其他处理之前)
     html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
         const langClass = language ? ` class="language-${language}"` : '';
         return `<pre><code${langClass}>${code.trim()}</code></pre>`;
     });
     
-    // Inline code (must come before other text processing)
+    // 内联代码
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     
-    // Headers
+    // 标题
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
@@ -39,28 +39,28 @@ function markdownToHTML(markdown) {
     html = html.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
     html = html.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
     
-    // Bold and italic (order matters)
+    // 粗体和斜体
     html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
     
-    // Strikethrough
+    // 删除线
     html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
     
-    // Links
+    // 链接
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     
-    // Horizontal rules
+    // 水平线
     html = html.replace(/^---\s*$/gm, '<hr>');
     
-    // Process lists
+    // 处理列表
     html = processLists(html);
     
-    // Paragraphs (split by double newlines and wrap non-HTML content)
+    // 段落 (按双换行符分割并包装非HTML内容)
     html = html.split('\n\n').map(paragraph => {
         paragraph = paragraph.trim();
         if (paragraph && !paragraph.match(/^<(h[1-6]|hr|pre|ul|ol|blockquote)/)) {
-            // Handle single line breaks within paragraphs
+            // 处理段落内的单换行符
             paragraph = paragraph.replace(/\n/g, '<br>');
             return `<p>${paragraph}</p>`;
         }
@@ -70,7 +70,7 @@ function markdownToHTML(markdown) {
     return html;
 }
 
-// Helper function to process lists
+// 辅助函数，用于处理列表
 function processLists(html) {
     const lines = html.split('\n');
     const result = [];
@@ -79,7 +79,7 @@ function processLists(html) {
     while (i < lines.length) {
         const line = lines[i];
         
-        // Check for ordered list
+        // 检查有序列表
         if (line.match(/^\d+\.\s/)) {
             const listItems = [];
             while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
@@ -92,7 +92,7 @@ function processLists(html) {
             continue;
         }
         
-        // Check for unordered list
+        // 检查无序列表
         if (line.match(/^-\s/)) {
             const listItems = [];
             while (i < lines.length && lines[i].match(/^-\s/)) {
@@ -112,7 +112,7 @@ function processLists(html) {
     return result.join('\n');
 }
 
-// Function to get blog files list
+// 获取博客文件列表
 async function getBlogFilesList() {
     try {
         const response = await fetch('./blogs/');
@@ -127,7 +127,7 @@ async function getBlogFilesList() {
                 .filter(href => href && href.endsWith('.md'))
                 .map(href => href.replace('./', ''))
                 .sort()
-                .reverse(); // Sort in descending order (newest first)
+                .reverse(); // 按降序排序 (最新的在前面)
             
             if (files.length > 0) {
                 return files;
@@ -141,6 +141,7 @@ async function getBlogFilesList() {
     return [];
 }
 
+// 加载博客文章
 async function loadBlogPosts() {
     try {
         const blogPostsContainer = document.querySelector('.blog-posts .container');
@@ -192,7 +193,6 @@ async function loadBlogPosts() {
             postElement.className = 'post';
             postElement.dataset.file = file;
             
-            // 🔴 Removed the collapse link
             postElement.innerHTML = `
                 <div class="post-content-wrapper">
                     <h3>${title}</h3>
@@ -213,9 +213,9 @@ async function loadBlogPosts() {
 }
 
 
-// ✅ Function to expand blog post, updated to manage state
+// 展开博客文章
 async function expandPost(postElement) {
-    // Collapse any other open post first
+    // 如果有其他已展开的文章，先将其折叠
     if (currentlyExpandedPost && currentlyExpandedPost !== postElement) {
         collapsePost(currentlyExpandedPost);
     }
@@ -225,6 +225,7 @@ async function expandPost(postElement) {
         const fullContentDiv = postElement.querySelector('.post-full-content');
         const renderedContentDiv = fullContentDiv.querySelector('.rendered-content');
         
+        // 如果内容已加载，直接展开
         if (renderedContentDiv.innerHTML.trim()) {
             fullContentDiv.classList.add('expanded');
             currentlyExpandedPost = postElement;
@@ -243,7 +244,6 @@ async function expandPost(postElement) {
         
         requestAnimationFrame(() => {
             fullContentDiv.classList.add('expanded');
-            // Set the current post and add the global listener
             currentlyExpandedPost = postElement;
             document.addEventListener('click', handleOutsideClick);
         });
@@ -263,7 +263,7 @@ async function expandPost(postElement) {
     }
 }
 
-// ✅ Function to collapse blog post, now takes the post element
+// 折叠博客文章
 function collapsePost(postElement) {
     const fullContentDiv = postElement.querySelector('.post-full-content');
     
@@ -271,16 +271,15 @@ function collapsePost(postElement) {
         fullContentDiv.classList.remove('expanded');
     }
 
-    // Clear state and remove global listener
     currentlyExpandedPost = null;
     document.removeEventListener('click', handleOutsideClick);
 }
 
-// ✅ Function to attach event listeners, updated for the new interaction model
+// 为文章元素附加事件监听器
 function attachPostEventListeners() {
     const posts = document.querySelectorAll('.post');
     posts.forEach(post => {
-        // Ripple effect listener remains the same
+        // 涟漪效果
         post.addEventListener('mousemove', (e) => {
             const rect = post.getBoundingClientRect();
             const x = e.clientX - rect.left;
@@ -292,10 +291,10 @@ function attachPostEventListeners() {
         post.style.setProperty('--mouse-x', '50%');
         post.style.setProperty('--mouse-y', '50%');
         
-        // Add click listener to the entire post element to expand it
+        // 点击整个文章元素以展开
         post.addEventListener('click', async (e) => {
             const fullContentDiv = post.querySelector('.post-full-content');
-            // Only expand if it's not already expanded
+            // 仅在未展开时展开
             if (!fullContentDiv.classList.contains('expanded')) {
                 await expandPost(post);
             }
