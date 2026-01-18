@@ -1,0 +1,791 @@
+/* ---------- JetBrains Mono Nerd Font ---------- */
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.1.1/patched-fonts/JetBrainsMono/Regular/JetBrainsMonoNerdFont-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Groutpix Flow Font ---------- */
+@font-face {
+  font-family: 'Groutpix Flow';
+  src: url('https://db.onlinewebfonts.com/t/78fd1a343af63d5f923ecbfdd170d05c.woff2') format('woff2'),
+    url('https://db.onlinewebfonts.com/t/78fd1a343af63d5f923ecbfdd170d05c.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.1.1/patched-fonts/JetBrainsMono/Bold/JetBrainsMonoNerdFont-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Nerd';
+  src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.1.1/patched-fonts/JetBrainsMono/Italic/JetBrainsMonoNerdFont-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* --------------------------------------------- */
+
+/* CSS变量定义 - 统一背景色主题 */
+:root {
+  /* 统一背景色 */
+  --unified-background: #282828;
+
+  /* 背景色系列 - 全部使用统一背景色 */
+  --background-color: var(--unified-background);
+  --header-background: var(--unified-background);
+  --post-background: var(--unified-background);
+  --footer-background: var(--unified-background);
+  --list-item-background: var(--unified-background);
+  --input-background: var(--unified-background);
+  --code-background: var(--unified-background);
+  --inline-code-background: var(--unified-background);
+  --button-background: var(--unified-background);
+  --surface-color: var(--unified-background);
+
+  /* 文本颜色 */
+  --text-color: #ebdbb2;
+  /* light1 */
+  --footer-text: #ebdbb2;
+  /* light1 */
+  --post-meta-color: #928374;
+  /* gray */
+
+  /* 主要颜色 */
+  --link-color: #83a598;
+  /* bright_blue */
+  --link-hover-color: #458588;
+  /* neutral_blue */
+  --section-title-color: #fabd2f;
+  /* bright_yellow */
+  --hero-background: linear-gradient(135deg, #d79921, #b57614);
+  /* neutral_yellow to faded_yellow */
+  --hero-background-alt: linear-gradient(135deg, #b57614, #9d0006);
+  /* faded_yellow to faded_red */
+  --button-text: #fabd2f;
+  /* bright_yellow */
+  --border-color: #665c54;
+  /* dark3 */
+
+  /* 悬停效果颜色 */
+  --hover-background: #d5c4a1;
+  /* 悬停时的文字颜色 */
+  --hover-text: #1d2021;
+
+  /* 成功/确认颜色 */
+  --success-color: #b8bb26;
+  /* bright_green */
+
+  /* 代码高亮颜色 */
+  --code-border: #665c54;
+  --inline-code-color: #fe8019;
+
+  /* 警告/错误颜色 */
+  --warning-color: #fb4934;
+  /* bright_red */
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* 基础样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans CJK SC', 'Noto Sans Mono CJK SC', 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  overflow-x: hidden;
+  /* 防止水平滚动条 */
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* 头部样式 */
+.header {
+  background-color: var(--header-background);
+  padding: 0;
+  border-bottom: none !important;
+}
+
+.header .container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem 20px 0.5rem;
+  gap: 1rem;
+}
+
+.logo {
+  font-family: 'Groutpix Flow', serif;
+  font-size: 2.5rem;
+  font-weight: normal;
+  color: var(--section-title-color);
+  overflow: hidden;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.logo-part-container {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  width: 6ch;
+  height: 1em;
+  vertical-align: middle;
+}
+
+.logo-part-0n4w3,
+.logo-part-oname {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  white-space: nowrap;
+  transform: translateY(-50%) translateX(0);
+  transition: transform .6s cubic-bezier(.645, .045, .355, 1);
+}
+
+.logo-part-0n4w3 {
+  transform: translateY(-50%) translateX(0);
+}
+
+.logo-part-oname {
+  transform: translateY(-50%) translateX(-100%);
+}
+
+.logo.folded .logo-part-0n4w3 {
+  transform: translateY(-50%) translateX(120%);
+}
+
+.logo.folded .logo-part-oname {
+  transform: translateY(-50%) translateX(0);
+}
+
+.nav ul {
+  list-style: none;
+  display: flex;
+}
+
+.nav ul li {
+  margin-left: 1.2rem;
+}
+
+.nav ul li a {
+  text-decoration: none;
+  color: var(--text-color);
+  font-weight: 500;
+  font-size: 1.1rem;
+  transition: color 0.3s;
+  position: relative;
+  padding: 0.6rem 0;
+}
+
+.nav ul li a::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: var(--link-color);
+  transition: width 0.3s ease;
+}
+
+.nav ul li a:hover::after {
+  width: 100%;
+}
+
+.nav ul li a:hover {
+  color: var(--link-color);
+}
+
+.music-player {
+  width: auto;
+  margin-top: 0;
+  order: unset;
+  text-align: center;
+  background-color: var(--background-color);
+}
+
+.music-player-post {
+  text-align: center;
+  padding: 0.6rem 1.2rem;
+  background-color: var(--background-color);
+}
+
+/* 激活状态的导航链接 */
+.nav ul li a.active {
+  color: var(--section-title-color);
+  font-weight: bold;
+}
+
+/* 主体内容样式 */
+.main {
+  padding: 0;
+}
+
+/* 英雄区域样式 */
+.hero {
+  background: var(--hero-background);
+  color: var(--footer-text);
+  padding: 2rem 0;
+  text-align: center;
+}
+
+/* 暖色调英雄区域样式 */
+.hero-warm {
+  background: var(--hero-background-alt);
+}
+
+.hero-title {
+  font-size: 2.8rem;
+  margin-bottom: 1.2rem;
+  font-weight: 400;
+}
+
+.hero-subtitle {
+  font-size: 1.3rem;
+  opacity: 0.9;
+}
+
+/* 博客文章列表样式 */
+.blog-posts {
+  width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.blog-posts .post-content-wrapper {
+  padding-top: 0.8rem;
+}
+
+.blog-posts .container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.post {
+  background-color: var(--post-background);
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  /* 创建新的堆叠上下文 */
+  color: var(--text-color);
+  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+  width: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.post-content-wrapper {
+  padding: 1.0rem 1.5rem;
+}
+
+/* 展开的博客全文样式 */
+.post-full-content {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.2s ease;
+}
+
+/* 展开状态的样式 */
+.post-full-content.expanded {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+  opacity: 1;
+}
+
+/* 强制去掉 Prism 主题背景，确保涟漪可见 */
+.post-full-content .rendered-content pre[class*="language-"],
+.post-full-content .rendered-content code[class*="language-"] {
+  background: transparent !important;
+}
+
+.post-full-content .rendered-content {
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: inherit;
+  max-height: none;
+  overflow: visible;
+}
+
+.post-full-content .rendered-content h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: inherit;
+  font-weight: 500;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+.post-full-content .rendered-content h2 {
+  font-size: 1.6rem;
+  margin: 1.5rem 0 0.8rem;
+  color: inherit;
+  font-weight: 500;
+}
+
+.post-full-content .rendered-content h3 {
+  font-size: 1.4rem;
+  margin: 1.2rem 0 0.6rem;
+  color: inherit;
+  font-weight: 500;
+}
+
+.post-full-content .rendered-content h4 {
+  font-size: 1.2rem;
+  margin: 1rem 0 0.5rem;
+  color: inherit;
+  font-weight: 500;
+}
+
+.post-full-content .rendered-content strong {
+  color: var(--section-title-color);
+  font-weight: 700;
+}
+
+.post-full-content .rendered-content em {
+  font-style: italic;
+  color: var(--link-color);
+}
+
+.post-full-content .rendered-content del {
+  text-decoration: line-through;
+  color: var(--post-meta-color);
+  opacity: 0.7;
+}
+
+.post-full-content .rendered-content code {
+  background: transparent;
+  color: inherit;
+  font-family: 'Noto Sans Mono CJK SC', "JetBrains Mono", "Fira Code", "Cascadia Code", SFMono-Regular,
+    Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  font-weight: normal;
+}
+
+.post-full-content .rendered-content pre {
+  background-color: transparent;
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1rem 0;
+  box-shadow: none;
+  font-family: 'Noto Sans Mono CJK SC', "JetBrains Mono", "Fira Code", "Cascadia Code", SFMono-Regular,
+    Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.post-full-content .rendered-content pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+  font-family: 'Noto Sans Mono CJK SC', "JetBrains Mono", "Fira Code", "Cascadia Code", SFMono-Regular,
+    Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+
+.post-full-content .rendered-content ul {
+  list-style-type: disc;
+  padding-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+.post-full-content .rendered-content ol {
+  list-style-type: decimal;
+  padding-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+.post-full-content .rendered-content li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.post-full-content .rendered-content a {
+  color: var(--link-color);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.post-full-content .rendered-content a:hover {
+  color: var(--link-hover-color);
+  border-bottom-color: var(--link-hover-color);
+}
+
+.post-full-content .rendered-content hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--border-color), transparent);
+  margin: 1.5rem 0;
+}
+
+/* BLOCKQUOTE STYLES */
+.post-full-content .rendered-content blockquote {
+  border-left: 3px solid var(--border-color);
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+  color: var(--post-meta-color);
+  /* Muted color for quoted text */
+}
+
+/* Remove bottom margin from paragraphs inside a blockquote, except the last one */
+.post-full-content .rendered-content blockquote p {
+  margin-bottom: 0.5rem;
+}
+
+.post-full-content .rendered-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Ensure consecutive blockquotes have no space between them */
+.post-full-content .rendered-content blockquote+blockquote {
+  margin-top: 0;
+}
+
+/* 圆形扩散效果的伪元素 */
+.post::before {
+  content: '';
+  position: absolute;
+  background-color: var(--hover-background);
+  border-radius: 50%;
+  transition: transform 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+  z-index: -1;
+  pointer-events: none;
+  left: var(--mouse-x, 50%);
+  top: var(--mouse-y, 50%);
+  width: 100vmax;
+  height: 100vmax;
+  transform: translate(-50%, -50%) scale(0);
+}
+
+/* 默认状态下显示统一背景色 */
+.post {
+  background-color: var(--post-background);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 鼠标悬停时触发背景色圆形扩散效果 */
+.post:hover::before {
+  transform: translate(-50%, -50%) scale(9);
+  transition: transform 5.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.post:hover .rendered-content pre {
+  border-color: #3c3836;
+}
+
+.post:hover,
+.post:hover h3,
+.post:hover .post-meta {
+  color: var(--hover-text);
+  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+}
+
+/* 让浏览器为这些元素的滤镜准备优化（可选，但建议） */
+.post .rendered-content pre code,
+.post .rendered-content code,
+.post .rendered-content strong,
+.post .rendered-content b,
+.post .rendered-content em,
+.post .rendered-content i {
+  will-change: filter;
+}
+
+/* 代码框内的“字母”在涟漪后（post:hover）反色 */
+.post:hover .rendered-content pre code,
+.post:hover .rendered-content code {
+  filter: invert(1) hue-rotate(180deg) saturate(1.05);
+}
+
+/* bold / italic / bold-italic 在涟漪后反色 */
+.post:hover .rendered-content strong,
+.post:hover .rendered-content b,
+.post:hover .rendered-content em,
+.post:hover .rendered-content i,
+.post:hover .rendered-content strong em,
+.post:hover .rendered-content em strong,
+.post:hover .rendered-content b i,
+.post:hover .rendered-content i b {
+  filter: invert(1) hue-rotate(180deg) saturate(1.05);
+}
+
+.post h3 {
+  font-size: 1.6rem;
+  margin-bottom: 0.4rem;
+  color: var(--text-color);
+  font-weight: 500;
+  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+}
+
+.post-meta {
+  color: var(--post-meta-color);
+  font-size: 0.95rem;
+  margin-bottom: 0;
+  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+}
+
+/* 仅正文段落需要间距与字号 */
+.post-full-content .rendered-content p {
+  margin-bottom: 0.8rem;
+  font-size: 1.05rem;
+}
+
+.post .post-meta {
+  margin-bottom: 0;
+}
+
+/* 关于页面样式 */
+.about-section {
+  padding: 1rem 0;
+}
+
+.music-section {
+  margin-top: 2rem;
+}
+
+.music-section h3 {
+  margin-bottom: 1rem;
+}
+
+/* 页脚样式 */
+.footer {
+  background-color: var(--footer-background);
+  color: var(--footer-text);
+  text-align: center;
+  padding: 0;
+  margin-top: 0;
+  border-top: none !important;
+}
+
+.footer p {
+  font-size: 0.9rem;
+}
+
+.footer .container {
+  padding: 0.5rem 20px;
+}
+
+/* Markdown内容样式 */
+.markdown-content {
+  font-size: 1.15rem;
+  line-height: 1.7;
+}
+
+.markdown-content h1 {
+  font-size: 2.2rem;
+  margin-bottom: 1.8rem;
+  color: var(--text-color);
+  text-align: center;
+  font-weight: 400;
+}
+
+.markdown-content h2 {
+  font-size: 1.6rem;
+  margin: 2.2rem 0 1.2rem;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+.markdown-content p {
+  margin-bottom: 1.2rem;
+}
+
+.markdown-content ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.markdown-content li {
+  background-color: transparent;
+  margin: 0;
+  padding: 0.25rem 0;
+  border-radius: 0;
+  font-weight: 500;
+}
+
+/* 脚注样式 */
+.footnote-ref {
+  cursor: pointer;
+}
+
+.footnote-element {
+  color: var(--link-color);
+  transition: color 0.3s ease;
+}
+
+.footnote-element:hover {
+  color: var(--link-hover-color);
+}
+
+.footnotes {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.footnotes hr {
+  display: none;
+  /* 隐藏hr，我们已经有了border-top */
+}
+
+.footnotes-list {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0;
+}
+
+.footnote-item {
+  margin-bottom: 0.5rem;
+  color: var(--post-meta-color);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.footnote-backref {
+  margin-left: 0.5rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.footnote-backref:hover {
+  color: var(--link-hover-color);
+}
+
+/* 在博客文章的渲染内容中的脚注样式 */
+.post-full-content .rendered-content .footnote-ref {
+  cursor: pointer;
+}
+
+.post-full-content .rendered-content .footnote-element {
+  color: var(--link-color);
+  transition: color 0.3s ease;
+}
+
+.post-full-content .rendered-content .footnote-element:hover {
+  color: var(--link-hover-color);
+}
+
+.post-full-content .rendered-content .footnotes {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.post-full-content .rendered-content .footnotes hr {
+  display: none;
+  /* 隐藏hr，我们已经有了border-top */
+}
+
+.post-full-content .rendered-content .footnotes-list {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0;
+}
+
+.post-full-content .rendered-content .footnote-item {
+  margin-bottom: 0.5rem;
+  color: var(--post-meta-color);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.post-full-content .rendered-content .footnote-backref {
+  margin-left: 0.5rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.post-full-content .rendered-content .footnote-backref:hover {
+  color: var(--link-hover-color);
+}
+
+/* 行内代码：脱离普通文本的色彩体系 + 等宽字体（依然保持涟漪反色） */
+.post-full-content .rendered-content :not(pre)>code {
+  color: var(--inline-code-color);
+  /* 已在 :root 定义为 #fe8019，可按需调整 */
+  font-family: 'Noto Sans Mono CJK SC', "JetBrains Mono", "Fira Code", "Cascadia Code", SFMono-Regular,
+    Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: normal;
+  background: transparent;
+  /* 继续透明背景，涟漪下更和谐 */
+  border: 1px solid var(--code-border);
+  /* 细边框让行内代码更“独立” */
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+}
+
+/* 性能优化 */
+.post .rendered-content :is(code, strong, b, em, i) {
+  will-change: filter;
+}
+
+/* 涟漪后只对“最外层”的 code/bold/italic 反色，避免 *** 被双反色抵消 */
+.post:hover .rendered-content :is(code, strong, b, em, i) {
+  filter: invert(1) hue-rotate(180deg) saturate(1.05);
+}
+
+/* 取消内层的再次反色：任何强调元素/代码嵌套在另一个强调元素/代码里面，都不再叠加反色 */
+.post:hover .rendered-content :is(code, strong, b, em, i) :is(code, strong, b, em, i) {
+  filter: none;
+}
+
+/* 所有 code / pre code 默认使用 JetBrains Mono Nerd Font */
+code,
+pre code,
+.post-full-content .rendered-content code,
+.post-full-content .rendered-content pre code {
+  font-family: 'JetBrains Mono Nerd', 'JetBrains Mono', monospace !important;
+}
+
+/* 自定义 APlayer 样式 */
+.aplayer {
+  box-shadow: none !important;
+  border: none !important;
+  /* 让播放器背景色与您的博客主题背景色保持一致 */
+  background: var(--unified-background) !important;
+}

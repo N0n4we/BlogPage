@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+rsync -avz --delete "$(dirname $0)/src/" root@xxx.xxx.xxx.xxx:/var/www/n0n4w3.cn
