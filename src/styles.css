@@ -71,7 +71,7 @@
   /* neutral_yellow to faded_yellow */
   --hero-background-alt: linear-gradient(135deg, #b57614, #9d0006);
   /* faded_yellow to faded_red */
-  --button-text: #fabd2f;
+  --button-text: #d79921;
   /* bright_yellow */
   --border-color: #665c54;
   /* dark3 */
@@ -507,6 +507,7 @@ body {
   background-color: var(--post-background);
   position: relative;
   overflow: hidden;
+  transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 鼠标悬停时触发背景色圆形扩散效果 */
@@ -523,23 +524,29 @@ body {
 .post:hover h3,
 .post:hover .post-meta {
   color: var(--hover-text);
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+  transition: color 2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 让浏览器为这些元素的滤镜准备优化（可选，但建议） */
 .post .rendered-content pre code,
-.post .rendered-content code,
+.post .rendered-content code {
+  will-change: filter;
+  transition: filter 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 .post .rendered-content strong,
 .post .rendered-content b,
 .post .rendered-content em,
 .post .rendered-content i {
   will-change: filter;
+  transition: filter 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* 代码框内的“字母”在涟漪后（post:hover）反色 */
+/* 代码框内的"字母"在涟漪后（post:hover）反色 */
 .post:hover .rendered-content pre code,
 .post:hover .rendered-content code {
   filter: invert(1) hue-rotate(180deg) saturate(1.05);
+  transition: filter 2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* bold / italic / bold-italic 在涟漪后反色 */
@@ -552,6 +559,7 @@ body {
 .post:hover .rendered-content b i,
 .post:hover .rendered-content i b {
   filter: invert(1) hue-rotate(180deg) saturate(1.05);
+  transition: filter 2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .post h3 {
@@ -559,14 +567,14 @@ body {
   margin-bottom: 0.4rem;
   color: var(--text-color);
   font-weight: 500;
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+  transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .post-meta {
   color: var(--post-meta-color);
   font-size: 0.95rem;
   margin-bottom: 0;
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+  transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 仅正文段落需要间距与字号 */
@@ -788,4 +796,148 @@ pre code,
   border: none !important;
   /* 让播放器背景色与您的博客主题背景色保持一致 */
   background: var(--unified-background) !important;
+}
+
+/* ---------- 评论区样式 ---------- */
+.comments-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.comments-title {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: var(--section-title-color);
+  font-weight: 500;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.comment-input {
+  background-color: var(--input-background);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.3s ease;
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: var(--link-color);
+}
+
+.comment-input::placeholder {
+  color: var(--post-meta-color);
+}
+
+.comment-nickname {
+  max-width: 200px;
+}
+
+.comment-content {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.comment-submit {
+  align-self: flex-start;
+  background-color: var(--button-background);
+  border: 1px solid var(--button-text);
+  color: var(--button-text);
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.comment-submit:hover:not(:disabled) {
+  background-color: var(--button-text);
+  color: var(--hover-text);
+}
+
+.comment-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comments-loading,
+.comments-empty {
+  color: var(--post-meta-color);
+  font-size: 0.95rem;
+}
+
+.comment-item {
+  padding: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: transparent;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: var(--link-color);
+}
+
+.comment-date {
+  font-size: 0.85rem;
+  color: var(--post-meta-color);
+}
+
+.comment-body {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.comment-body p {
+  margin-bottom: 0.5rem;
+}
+
+.comment-body p:last-child {
+  margin-bottom: 0;
+}
+
+.comment-body code {
+  background: transparent;
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  color: var(--inline-code-color);
+  font-family: 'JetBrains Mono Nerd', monospace;
+}
+
+.comment-body pre {
+  background-color: transparent;
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  padding: 0.8rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.comment-body pre code {
+  border: none;
+  padding: 0;
 }
