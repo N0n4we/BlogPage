@@ -9,14 +9,15 @@ const originalTitle = "Noname's Blog";
 const originalMetaDescription = "Welcome to Noname's Blog. A collection of thoughts, ideas, and sighs.";
 
 function BlogPage() {
-  const { dateId } = useParams();
+  const { dateId } = useParams<{ dateId?: string }>();
   const navigate = useNavigate();
-  const [expandedPostId, setExpandedPostId] = useState(dateId || null);
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(dateId || null);
 
   useEffect(() => {
     if (dateId && dateId !== expandedPostId) {
       setExpandedPostId(dateId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateId]);
 
   useEffect(() => {
@@ -29,7 +30,7 @@ function BlogPage() {
         setExpandedPostId(null);
         document.title = originalTitle;
         const metaTag = document.querySelector('meta[name="description"]');
-        if (metaTag) metaTag.content = originalMetaDescription;
+        if (metaTag) metaTag.setAttribute('content', originalMetaDescription);
       }
     };
 
@@ -37,13 +38,13 @@ function BlogPage() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handlePostToggle = useCallback((postDateStr) => {
+  const handlePostToggle = useCallback((postDateStr: string) => {
     if (expandedPostId === postDateStr) {
       setExpandedPostId(null);
       navigate('/', { replace: false });
       document.title = originalTitle;
       const metaTag = document.querySelector('meta[name="description"]');
-      if (metaTag) metaTag.content = originalMetaDescription;
+      if (metaTag) metaTag.setAttribute('content', originalMetaDescription);
     } else {
       setExpandedPostId(postDateStr);
       navigate(`/${postDateStr}`, { replace: false });
@@ -55,7 +56,7 @@ function BlogPage() {
       if (!expandedPostId) return;
       const post = document.querySelector(`.post[data-date="${expandedPostId}"]`);
       if (!post) return;
-      const fullContentDiv = post.querySelector('.post-full-content');
+      const fullContentDiv = post.querySelector('.post-full-content') as HTMLElement | null;
       if (!fullContentDiv) return;
       if (getComputedStyle(fullContentDiv).maxHeight !== 'none') {
         fullContentDiv.style.maxHeight = fullContentDiv.scrollHeight + 'px';

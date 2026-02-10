@@ -1,21 +1,24 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Plugin to generate blog manifest
-function blogManifestPlugin() {
+function blogManifestPlugin(): Plugin {
   const blogsDir = path.resolve(__dirname, 'public/blogs')
 
-  function generateManifest() {
+  function generateManifest(): string {
     try {
       const files = fs.readdirSync(blogsDir)
         .filter(f => f.endsWith('.md'))
         .sort()
         .reverse()
       return JSON.stringify(files)
-    } catch (e) {
-      console.error('Error reading blogs directory:', e)
+    } catch {
+      console.error('Error reading blogs directory')
       return '[]'
     }
   }

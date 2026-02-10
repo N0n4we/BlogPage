@@ -1,7 +1,12 @@
 import { useBlogPosts } from '../hooks/useBlogPosts';
-import BlogPost from './BlogPost';
+import BlogPostComponent from './BlogPost';
 
-export default function BlogPostList({ expandedPostId, onPostToggle }) {
+interface BlogPostListProps {
+  expandedPostId: string | null;
+  onPostToggle: (postDateStr: string) => void;
+}
+
+export default function BlogPostList({ expandedPostId, onPostToggle }: BlogPostListProps) {
   const { posts, loading, error } = useBlogPosts();
 
   if (loading) {
@@ -46,7 +51,7 @@ export default function BlogPostList({ expandedPostId, onPostToggle }) {
     <section className="blog-posts">
       <div className="container">
         {posts.map(post => (
-          <BlogPost
+          <BlogPostComponent
             key={post.dateStr}
             post={post}
             isExpanded={expandedPostId === post.dateStr}

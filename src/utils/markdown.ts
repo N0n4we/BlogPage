@@ -1,21 +1,30 @@
-import { marked } from 'marked';
+import { marked, Token, Tokens, TokenizerExtension, RendererExtension } from 'marked';
+
+interface FootnoteToken extends Tokens.Generic {
+  type: 'footnote';
+  raw: string;
+  id: string;
+  text: string;
+}
+
+interface FootnoteRefToken extends Tokens.Generic {
+  type: 'footnoteRef';
+  raw: string;
+  id: string;
+}
 
 // 为 Marked.js 添加脚注扩展
-const footnoteExtension = {
+const footnoteExtension: TokenizerExtension & RendererExtension = {
   name: 'footnote',
   level: 'block',
-  start(src) {
+  start(src: string) {
     const match = src.match(/^\[\^[^\]]+\]:/);
     return match ? match.index : undefined;
   },
-  tokenizer(src) {
+  tokenizer(src: string): FootnoteToken | undefined {
     const rule = /^\[\^([^\]]+)\]:\s*(.*)$/;
     const match = rule.exec(src);
     if (match) {
-      if (!this.lexer.options.footnotes) {
-        this.lexer.options.footnotes = {};
-      }
-      this.lexer.options.footnotes[match[1]] = match[2].trim();
       return {
         type: 'footnote',
         raw: match[0],
@@ -29,14 +38,14 @@ const footnoteExtension = {
   }
 };
 
-const footnoteRefExtension = {
+const footnoteRefExtension: TokenizerExtension & RendererExtension = {
   name: 'footnoteRef',
   level: 'inline',
-  start(src) {
+  start(src: string) {
     const match = src.match(/\[\^[^\]]+\]/);
     return match ? match.index : undefined;
   },
-  tokenizer(src) {
+  tokenizer(src: string): FootnoteRefToken | undefined {
     const rule = /^\[\^([^\]]+)\]/;
     const match = rule.exec(src);
     if (match) {
@@ -47,8 +56,9 @@ const footnoteRefExtension = {
       };
     }
   },
-  renderer(token) {
-    return `<sup class="footnote-ref"><span class="footnote-element">${token.id}</span></sup>`;
+  renderer(token: Token) {
+    const footnoteToken = token as FootnoteRefToken;
+    return `<sup class="footnote-ref"><span class="footnote-element">${footnoteToken.id}</span></sup>`;
   },
 };
 
@@ -63,8 +73,8 @@ marked.setOptions({
 });
 
 // 解析 Markdown 并处理脚注
-export function parseMarkdownWithFootnotes(markdown) {
-  const footnoteDefinitions = {};
+export function parseMarkdownWithFootnotes(markdown: string): string {
+  const footnoteDefinitions: Record<string, string> = {};
   const footnoteRegex = /^\[\^([^\]]+)\]:\s*(.*)$/gm;
   let match;
 
@@ -73,7 +83,7 @@ export function parseMarkdownWithFootnotes(markdown) {
   }
 
   const parseOptions = { gfm: true, breaks: true };
-  const html = marked.parse(markdown, parseOptions);
+  const html = marked.parse(markdown, parseOptions) as string;
   const footnotes = footnoteDefinitions;
 
   if (footnotes && Object.keys(footnotes).length > 0) {
@@ -92,7 +102,7 @@ export function parseMarkdownWithFootnotes(markdown) {
 }
 
 // 从 Markdown 创建摘要
-export function createSummaryFromMarkdown(markdown, maxLength = 155) {
+export function createSummaryFromMarkdown(markdown: string, maxLength: number = 155): string {
   if (!markdown) return '';
   let text = markdown
     .replace(/^#+\s*.*/gm, '')
@@ -109,7 +119,7 @@ export function createSummaryFromMarkdown(markdown, maxLength = 155) {
 }
 
 // 将文件名 slug 转换为可读的标题
-export function slugToTitle(slug) {
+export function slugToTitle(slug: string): string {
   return slug
     .split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))

@@ -1,4 +1,4 @@
-import initSqlJs from 'sql.js';
+import initSqlJs, { Database, Statement } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -6,9 +6,16 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, 'comments.db');
 
-let db;
+export interface Comment {
+  id: number;
+  nickname: string;
+  content: string;
+  created_at: string;
+}
 
-async function initDb() {
+let db: Database;
+
+async function initDb(): Promise<void> {
   const SQL = await initSqlJs();
 
   if (fs.existsSync(dbPath)) {
@@ -32,26 +39,26 @@ async function initDb() {
   saveDb();
 }
 
-function saveDb() {
+function saveDb(): void {
   const data = db.export();
   const buffer = Buffer.from(data);
   fs.writeFileSync(dbPath, buffer);
 }
 
-function getCommentsByPostId(postId) {
+function getCommentsByPostId(postId: string): Comment[] {
   const stmt = db.prepare(
     'SELECT id, nickname, content, created_at FROM comments WHERE post_id = ? ORDER BY created_at DESC'
   );
   stmt.bind([postId]);
-  const results = [];
+  const results: Comment[] = [];
   while (stmt.step()) {
-    results.push(stmt.getAsObject());
+    results.push(stmt.getAsObject() as unknown as Comment);
   }
   stmt.free();
   return results;
 }
 
-function createComment(postId, nickname, content) {
+function createComment(postId: string, nickname: string, content: string): Comment {
   const createdAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
   db.run(
     'INSERT INTO comments (post_id, nickname, content, created_at) VALUES (?, ?, ?, ?)',
@@ -61,13 +68,13 @@ function createComment(postId, nickname, content) {
 
   const stmt = db.prepare('SELECT id FROM comments WHERE post_id = ? AND nickname = ? AND created_at = ?');
   stmt.bind([postId, nickname, createdAt]);
-  let id = null;
+  let id: number | null = null;
   if (stmt.step()) {
-    id = stmt.getAsObject().id;
+    id = (stmt.getAsObject() as { id: number }).id;
   }
   stmt.free();
 
-  return { id, nickname, content, created_at: createdAt };
+  return { id: id!, nickname, content, created_at: createdAt };
 }
 
 export { initDb, getCommentsByPostId, createComment };

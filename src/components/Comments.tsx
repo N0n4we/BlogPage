@@ -1,8 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { parseMarkdownWithFootnotes } from '../utils/markdown';
 
-export default function Comments({ postId }) {
-  const [comments, setComments] = useState([]);
+interface Comment {
+  id: number;
+  nickname: string;
+  content: string;
+  created_at: string;
+}
+
+interface CommentsProps {
+  postId: string;
+}
+
+export default function Comments({ postId }: CommentsProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
   const [nickname, setNickname] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,7 +29,7 @@ export default function Comments({ postId }) {
       .finally(() => setLoading(false));
   }, [postId]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!nickname.trim() || !content.trim()) return;
 
@@ -40,7 +51,7 @@ export default function Comments({ postId }) {
     }
   };
 
-  const formatDate = (dateStr) => {
+  const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleString('zh-CN', {
       year: 'numeric', month: '2-digit', day: '2-digit',

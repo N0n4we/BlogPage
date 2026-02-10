@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 
-export function useScrollPosition() {
+export function useScrollPosition(): boolean {
   const [isFolded, setIsFolded] = useState(false);
-  const timeoutRef = useRef(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const checkScrollPosition = () => {

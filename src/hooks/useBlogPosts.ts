@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
 import { slugToTitle } from '../utils/markdown';
 
-export function useBlogPosts() {
-  const [posts, setPosts] = useState([]);
+export interface BlogPost {
+  file: string;
+  dateStr: string;
+  title: string;
+  displayDate: string;
+}
+
+interface UseBlogPostsResult {
+  posts: BlogPost[];
+  loading: boolean;
+  error: string | null;
+}
+
+export function useBlogPosts(): UseBlogPostsResult {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchBlogList() {
@@ -12,7 +25,7 @@ export function useBlogPosts() {
         // 尝试从 manifest.json 获取博客列表（开发环境和构建后都支持）
         const response = await fetch('/blogs/manifest.json');
         if (response.ok) {
-          const files = await response.json();
+          const files: string[] = await response.json();
 
           const blogPosts = files
             .map(file => {
@@ -27,7 +40,7 @@ export function useBlogPosts() {
                 const month = dateStr.substring(4, 6);
                 const day = dateStr.substring(6, 8);
                 displayDate = `${year}/${month}/${day}`;
-              } catch (e) {
+              } catch {
                 console.warn(`Could not parse date from filename: ${file}`);
               }
 
@@ -38,7 +51,7 @@ export function useBlogPosts() {
                 displayDate,
               };
             })
-            .filter(Boolean);
+            .filter((post): post is BlogPost => post !== null);
 
           setPosts(blogPosts);
         } else {
@@ -46,7 +59,7 @@ export function useBlogPosts() {
         }
       } catch (err) {
         console.error('Error fetching blog list:', err);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
       }

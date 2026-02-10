@@ -1,7 +1,14 @@
 import { useEffect, useRef } from 'react';
 import APlayer from 'aplayer';
 
-const songs = [
+interface Song {
+  name: string;
+  artist: string;
+  url: string;
+  cover: string;
+}
+
+const songs: Song[] = [
   {
     name: 'Glass Lung',
     artist: 'Ximm',
@@ -11,9 +18,9 @@ const songs = [
 ];
 
 export default function MusicPlayer() {
-  const containerRef = useRef(null);
-  const playerRef = useRef(null);
-  const retryIntervalRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<APlayer | null>(null);
+  const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -35,18 +42,16 @@ export default function MusicPlayer() {
       if (!autoplayAttempted) {
         autoplayAttempted = true;
         setTimeout(() => {
-          ap.play().then(() => {
-            if (retryIntervalRef.current) {
-              clearInterval(retryIntervalRef.current);
-              retryIntervalRef.current = null;
-            }
-          }).catch(() => {
+          try {
+            ap.play();
+          } catch {
+            // 自动播放被浏览器阻止，启动重试
             retryIntervalRef.current = setInterval(() => {
               if (ap.paused) {
-                ap.play().catch(() => {});
+                try { ap.play(); } catch { /* ignore */ }
               }
             }, 5000);
-          });
+          }
         }, 3000);
       }
     });

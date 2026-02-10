@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, MouseEvent } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-javascript';
@@ -8,14 +8,21 @@ import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-markdown';
 import { parseMarkdownWithFootnotes, createSummaryFromMarkdown } from '../utils/markdown';
 import Comments from './Comments';
+import { BlogPost as BlogPostType } from '../hooks/useBlogPosts';
 
-export default function BlogPost({ post, isExpanded, onToggle }) {
+interface BlogPostProps {
+  post: BlogPostType;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
-  const fullContentRef = useRef(null);
-  const postRef = useRef(null);
+  const fullContentRef = useRef<HTMLDivElement>(null);
+  const postRef = useRef<HTMLElement>(null);
 
-  const handleMouseMove = useCallback((e) => {
+  const handleMouseMove = useCallback((e: MouseEvent<HTMLElement>) => {
     if (!postRef.current) return;
     const rect = postRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -30,11 +37,11 @@ export default function BlogPost({ post, isExpanded, onToggle }) {
     el.style.maxHeight = 'none';
     const target = el.scrollHeight;
     el.style.maxHeight = '0px';
-    el.offsetHeight; // force reflow
+    el.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions -- force reflow
     el.classList.add('expanded');
     el.style.maxHeight = target + 'px';
 
-    const onEnd = (e) => {
+    const onEnd = (e: TransitionEvent) => {
       if (e.propertyName === 'max-height') {
         el.style.maxHeight = 'none';
         el.removeEventListener('transitionend', onEnd);
@@ -48,17 +55,15 @@ export default function BlogPost({ post, isExpanded, onToggle }) {
     if (!el) return;
     if (getComputedStyle(el).maxHeight === 'none') {
       el.style.maxHeight = el.scrollHeight + 'px';
-      el.offsetHeight; // force reflow
+      el.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions -- force reflow
     }
     el.style.maxHeight = '0px';
-    requestAnimationFrame(() => {
-      el.classList.remove('expanded');
-    });
+    el.classList.remove('expanded');
   }, []);
 
   useEffect(() => {
     if (isExpanded && !content) {
-      setLoading(true);
+      setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- intentional fetch trigger
       const url = `/blogs/${encodeURIComponent(post.file)}`;
       fetch(url, { cache: 'no-store' })
         .then(res => {
@@ -69,7 +74,7 @@ export default function BlogPost({ post, isExpanded, onToggle }) {
           const summary = createSummaryFromMarkdown(markdown);
           if (summary) {
             const metaTag = document.querySelector('meta[name="description"]');
-            if (metaTag) metaTag.content = summary;
+            if (metaTag) metaTag.setAttribute('content', summary);
           }
           const htmlContent = parseMarkdownWithFootnotes(markdown);
           setContent(htmlContent);
@@ -83,25 +88,35 @@ export default function BlogPost({ post, isExpanded, onToggle }) {
     }
   }, [isExpanded, content, post.file]);
 
+  // 展开动画：等待内容加载完成后再触发
   useEffect(() => {
     if (isExpanded) {
+      // 如果内容还在加载，不触发动画（等待内容加载完成后由下面的 effect 触发）
+      if (loading || (!content && !loading)) return;
       animateExpand();
     } else if (fullContentRef.current?.classList.contains('expanded')) {
       animateCollapse();
     }
-  }, [isExpanded, animateExpand, animateCollapse]);
+  }, [isExpanded, loading, content, animateExpand, animateCollapse]);
 
+  // 内容加载完成后：先执行 Prism 高亮，再触发展开动画
   useEffect(() => {
-    if (content && fullContentRef.current) {
+    if (content && fullContentRef.current && isExpanded) {
       Prism.highlightAllUnder(fullContentRef.current);
-      if (getComputedStyle(fullContentRef.current).maxHeight !== 'none') {
-        fullContentRef.current.style.maxHeight = fullContentRef.current.scrollHeight + 'px';
-      }
+      // 使用 requestAnimationFrame 确保 DOM 已更新后再计算高度
+      requestAnimationFrame(() => {
+        if (fullContentRef.current && !fullContentRef.current.classList.contains('expanded')) {
+          animateExpand();
+        } else if (fullContentRef.current && getComputedStyle(fullContentRef.current).maxHeight !== 'none') {
+          // 如果已经展开但高度不对（比如 Prism 改变了高度），更新高度
+          fullContentRef.current.style.maxHeight = fullContentRef.current.scrollHeight + 'px';
+        }
+      });
     }
-  }, [content]);
+  }, [content, isExpanded, animateExpand]);
 
-  const handleClick = (e) => {
-    if (e.target.closest('.post-full-content')) return;
+  const handleClick = (e: MouseEvent<HTMLElement>) => {
+    if ((e.target as HTMLElement).closest('.post-full-content')) return;
     onToggle();
   };
 
@@ -132,8 +147,10 @@ export default function BlogPost({ post, isExpanded, onToggle }) {
               __html: loading ? '<p style="opacity:.8">正在加载...</p>' : content
             }}
           />
-          {isExpanded && content && !loading && (
-            <Comments postId={post.dateStr} />
+          {content && !loading && (
+            <div className={`comments-wrapper ${isExpanded ? 'visible' : ''}`}>
+              <Comments postId={post.dateStr} />
+            </div>
           )}
         </div>
       </div>
