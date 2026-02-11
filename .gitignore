@@ -8,6 +8,9 @@ node_modules
 
 # Build output
 dist
+target
+wasm-markdown/pkg
+src/wasm
 
 # Logs
 *.log

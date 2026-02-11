@@ -6,6 +6,7 @@ interface Comment {
   nickname: string;
   content: string;
   created_at: string;
+  renderedContent?: string;
 }
 
 interface CommentsProps {
@@ -24,7 +25,15 @@ export default function Comments({ postId }: CommentsProps) {
     setLoading(true);
     fetch(`/api/comments/${postId}`)
       .then(res => res.json())
-      .then(data => setComments(data))
+      .then(async (data: Comment[]) => {
+        const rendered = await Promise.all(
+          data.map(async (c) => ({
+            ...c,
+            renderedContent: await parseMarkdownWithFootnotes(c.content)
+          }))
+        );
+        setComments(rendered);
+      })
       .catch(err => console.error('Failed to load comments:', err))
       .finally(() => setLoading(false));
   }, [postId]);
@@ -42,7 +51,8 @@ export default function Comments({ postId }: CommentsProps) {
       });
       if (!res.ok) throw new Error('Failed to submit');
       const newComment = await res.json();
-      setComments(prev => [newComment, ...prev]);
+      const renderedContent = await parseMarkdownWithFootnotes(newComment.content);
+      setComments(prev => [{ ...newComment, renderedContent }, ...prev]);
       setContent('');
     } catch (err) {
       console.error('Failed to submit comment:', err);
@@ -103,7 +113,7 @@ export default function Comments({ postId }: CommentsProps) {
               </div>
               <div
                 className="comment-body"
-                dangerouslySetInnerHTML={{ __html: parseMarkdownWithFootnotes(comment.content) }}
+                dangerouslySetInnerHTML={{ __html: comment.renderedContent || '' }}
               />
             </div>
           ))

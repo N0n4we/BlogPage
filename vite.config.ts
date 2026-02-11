@@ -56,5 +56,11 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  optimizeDeps: {
+    exclude: ['wasm-markdown']
+  },
+  build: {
+    target: 'esnext'
   }
 })

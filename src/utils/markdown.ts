@@ -1,4 +1,12 @@
 import { marked, Token, Tokens, TokenizerExtension, RendererExtension } from 'marked';
+import init, { parse_markdown } from '../wasm/wasm_markdown';
+
+// WASM初始化状态
+let wasmReady: Promise<void> | null = null;
+let useWasm = true;
+
+// 预加载WASM
+wasmReady = init().then(() => {}).catch(() => { useWasm = false; });
 
 interface FootnoteToken extends Tokens.Generic {
   type: 'footnote';
@@ -73,7 +81,19 @@ marked.setOptions({
 });
 
 // 解析 Markdown 并处理脚注
-export function parseMarkdownWithFootnotes(markdown: string): string {
+export async function parseMarkdownWithFootnotes(markdown: string): Promise<string> {
+  // 尝试使用WASM解析器
+  if (useWasm) {
+    try {
+      await wasmReady;
+      return parse_markdown(markdown);
+    } catch (e) {
+      console.warn('WASM parser failed, falling back to marked:', e);
+      useWasm = false;
+    }
+  }
+
+  // Fallback到marked
   const footnoteDefinitions: Record<string, string> = {};
   const footnoteRegex = /^\[\^([^\]]+)\]:\s*(.*)$/gm;
   let match;

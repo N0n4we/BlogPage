@@ -70,13 +70,13 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.text();
         })
-        .then(markdown => {
+        .then(async markdown => {
           const summary = createSummaryFromMarkdown(markdown);
           if (summary) {
             const metaTag = document.querySelector('meta[name="description"]');
             if (metaTag) metaTag.setAttribute('content', summary);
           }
-          const htmlContent = parseMarkdownWithFootnotes(markdown);
+          const htmlContent = await parseMarkdownWithFootnotes(markdown);
           setContent(htmlContent);
         })
         .catch(err => {
