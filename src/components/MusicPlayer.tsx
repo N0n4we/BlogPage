@@ -10,10 +10,10 @@ interface Song {
 
 const songs: Song[] = [
   {
-    name: 'Glass Lung',
-    artist: 'Ximm',
-    url: '/songs/Ximm - Glass Lung.m4a',
-    cover: '/songs/Ximm - Glass Lung.jpg',
+    name: 'TURN IT UP!',
+    artist: 'VILL',
+    url: '/songs/VILL - TURN IT UP!.m4a',
+    cover: '/songs/VILL - TURN IT UP!.jpg',
   },
 ];
 
