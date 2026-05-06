@@ -7,7 +7,6 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-markdown';
 import { parseMarkdownWithFootnotes, createSummaryFromMarkdown } from '../utils/markdown';
-import Comments from './Comments';
 import { BlogPost as BlogPostType } from '../hooks/useBlogPosts';
 
 interface BlogPostProps {
@@ -147,11 +146,7 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
               __html: loading ? '<p style="opacity:.8">正在加载...</p>' : content
             }}
           />
-          {content && !loading && (
-            <div className={`comments-wrapper ${isExpanded ? 'visible' : ''}`}>
-              <Comments postId={post.dateStr} />
-            </div>
-          )}
+
         </div>
       </div>
     </article>
