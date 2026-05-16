@@ -10,10 +10,10 @@ interface Song {
 
 const songs: Song[] = [
   {
-    name: 'TURN IT UP!',
-    artist: 'VILL',
-    url: '/songs/VILL - TURN IT UP!.m4a',
-    cover: '/songs/VILL - TURN IT UP!.jpg',
+    name: '721eternal',
+    artist: 'pandi',
+    url: '/songs/pandi - 721eternal.mp3',
+    cover: '/songs/pandi - 721eternal.jpg',
   },
 ];
 
