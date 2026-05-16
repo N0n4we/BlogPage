@@ -955,3 +955,29 @@ pre code,
   border: none;
   padding: 0;
 }
+
+/* ---------- Glitch Effect ---------- */
+.glitch-blackout {
+  background: var(--post-background);
+  color: transparent;
+}
+
+.glitch-chars {
+  color: var(--warning-color);
+  animation: glitch-jitter 0.06s steps(3, jump-start) infinite;
+}
+
+@keyframes glitch-jitter {
+  0% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(1px, -0.5px);
+  }
+  66% {
+    transform: translate(-0.5px, 1px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}

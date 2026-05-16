@@ -7,6 +7,7 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-markdown';
 import { parseMarkdownWithFootnotes, createSummaryFromMarkdown } from '../utils/markdown';
+import { useGlitchEffect } from '../hooks/useGlitchEffect';
 import { BlogPost as BlogPostType } from '../hooks/useBlogPosts';
 
 interface BlogPostProps {
@@ -18,8 +19,12 @@ interface BlogPostProps {
 export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const [contentError, setContentError] = useState(false);
   const fullContentRef = useRef<HTMLDivElement>(null);
   const postRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const onEndRef = useRef<((e: TransitionEvent) => void) | null>(null);
 
   const handleMouseMove = useCallback((e: MouseEvent<HTMLElement>) => {
     if (!postRef.current) return;
@@ -33,6 +38,11 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
   const animateExpand = useCallback(() => {
     const el = fullContentRef.current;
     if (!el) return;
+    // Remove any prior transitionend listener so it doesn't fire on a later collapse.
+    if (onEndRef.current) {
+      el.removeEventListener('transitionend', onEndRef.current);
+      onEndRef.current = null;
+    }
     el.style.maxHeight = 'none';
     const target = el.scrollHeight;
     el.style.maxHeight = '0px';
@@ -44,14 +54,23 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
       if (e.propertyName === 'max-height') {
         el.style.maxHeight = 'none';
         el.removeEventListener('transitionend', onEnd);
+        onEndRef.current = null;
       }
     };
+    onEndRef.current = onEnd;
     el.addEventListener('transitionend', onEnd);
   }, []);
 
   const animateCollapse = useCallback(() => {
     const el = fullContentRef.current;
     if (!el) return;
+    // Remove any prior expand-transitionend listener — otherwise it would fire
+    // when the collapse's max-height transition reaches 0 and snap maxHeight
+    // back to 'none' (visible "snap to original" glitch).
+    if (onEndRef.current) {
+      el.removeEventListener('transitionend', onEndRef.current);
+      onEndRef.current = null;
+    }
     if (getComputedStyle(el).maxHeight === 'none') {
       el.style.maxHeight = el.scrollHeight + 'px';
       el.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions -- force reflow
@@ -62,6 +81,7 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
 
   useEffect(() => {
     if (isExpanded && !content) {
+      setContentError(false);
       setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- intentional fetch trigger
       const url = `/blogs/${encodeURIComponent(post.file)}`;
       fetch(url, { cache: 'no-store' })
@@ -80,6 +100,7 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
         })
         .catch(err => {
           setContent(`<p style="color: var(--warning-color);">加载失败：${err.message}</p>`);
+          setContentError(true);
         })
         .finally(() => {
           setLoading(false);
@@ -103,14 +124,17 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     if (content && fullContentRef.current && isExpanded) {
       Prism.highlightAllUnder(fullContentRef.current);
       // 使用 requestAnimationFrame 确保 DOM 已更新后再计算高度
-      requestAnimationFrame(() => {
-        if (fullContentRef.current && !fullContentRef.current.classList.contains('expanded')) {
+      const rafId = requestAnimationFrame(() => {
+        const el = fullContentRef.current;
+        if (!el) return;
+        if (!isExpanded) return;
+        if (!el.classList.contains('expanded')) {
           animateExpand();
-        } else if (fullContentRef.current && getComputedStyle(fullContentRef.current).maxHeight !== 'none') {
-          // 如果已经展开但高度不对（比如 Prism 改变了高度），更新高度
-          fullContentRef.current.style.maxHeight = fullContentRef.current.scrollHeight + 'px';
+        } else if (getComputedStyle(el).maxHeight !== 'none') {
+          el.style.maxHeight = el.scrollHeight + 'px';
         }
       });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [content, isExpanded, animateExpand]);
 
@@ -126,6 +150,19 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     }
   }, []);
 
+  // Glitch effect: heavy on body, light on title.
+  // Enabled once content is loaded — runs continuously through expand/collapse
+  // transitions so glitches never visibly "restart" when the user toggles a post.
+  useGlitchEffect(titleRef, {
+    enabled: !!content && !contentError,
+    intensity: 'light',
+  });
+
+  useGlitchEffect(contentRef, {
+    enabled: !!content && !contentError,
+    intensity: 'heavy',
+  });
+
   return (
     <article
       ref={postRef}
@@ -137,11 +174,12 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
       onClick={handleClick}
     >
       <div className="post-content-wrapper">
-        <h3>{post.title}</h3>
+        <h3 ref={titleRef}>{post.title}</h3>
         <p className="post-meta">{post.displayDate}</p>
         <div className="post-full-content" ref={fullContentRef}>
           <div
             className="rendered-content"
+            ref={contentRef}
             dangerouslySetInnerHTML={{
               __html: loading ? '<p style="opacity:.8">正在加载...</p>' : content
             }}
