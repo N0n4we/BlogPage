@@ -80,6 +80,9 @@ export function useGlitchEffect(
 
         const text = textNode.textContent || '';
         if (text.length === 0) return;
+        // 跳过纯空白文本节点（标签间的换行/缩进），
+        // 否则 glitch 字符会混入这些空白区域产生多余的"换行"
+        if (text.trim().length === 0) return;
 
         const glitchLen = Math.min(
           Math.ceil(Math.random() * config.maxGlitchLength),

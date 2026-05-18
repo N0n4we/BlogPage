@@ -47,9 +47,16 @@ function replaceTextNodes(
   fn: (length: number) => string,
 ): void {
   if (node.nodeType === Node.TEXT_NODE) {
-    const len = (node.textContent || '').length;
+    const text = node.textContent || '';
+    const len = text.length;
     if (len > 0) {
-      node.textContent = fn(len);
+      // 纯空白文本节点（标签间的换行/缩进）：消费 mantra 偏移量但不替换内容，
+      // 否则 mantra 字符会混入不可见区域产生多余的"换行"
+      if (text.trim().length === 0) {
+        fn(len); // 仅推进 offset，丢弃结果
+      } else {
+        node.textContent = fn(len);
+      }
     }
   } else {
     // 使用 childNodes 而非 children，因为我们需要遍历所有节点类型
