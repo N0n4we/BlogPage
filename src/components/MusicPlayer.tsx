@@ -10,10 +10,10 @@ interface Song {
 
 const songs: Song[] = [
   {
-    name: '721eternal',
-    artist: 'pandi',
-    url: '/songs/pandi - 721eternal.mp3',
-    cover: '/songs/pandi - 721eternal.jpg',
+    name: 'item storage',
+    artist: 'slowly, slowly',
+    url: '/songs/slowly, slowly - item storage.mp3',
+    cover: '/songs/slowly, slowly - item storage.jpg',
   },
 ];
 
