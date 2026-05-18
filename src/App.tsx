@@ -5,6 +5,16 @@ import Footer from './components/Footer';
 import MusicPlayer from './components/MusicPlayer';
 import BlogPostList from './components/BlogPostList';
 
+const POST_EXPANDED_KEY = 'n0n4w3_post_expanded';
+const POST_EXPANDED_EVENT = 'n0n4w3-post-expanded';
+
+/** 首次展开 post 时标记并通知 Header 开始 glitch */
+function markFirstPostExpanded() {
+  if (localStorage.getItem(POST_EXPANDED_KEY)) return;
+  localStorage.setItem(POST_EXPANDED_KEY, '1');
+  window.dispatchEvent(new CustomEvent(POST_EXPANDED_EVENT));
+}
+
 const originalTitle = "Noname's Blog";
 const originalMetaDescription = "Welcome to Noname's Blog. A collection of thoughts, ideas, and sighs.";
 
@@ -16,6 +26,7 @@ function BlogPage() {
   useEffect(() => {
     if (dateId && dateId !== expandedPostId) {
       setExpandedPostId(dateId);
+      markFirstPostExpanded();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateId]);
@@ -47,6 +58,7 @@ function BlogPage() {
       if (metaTag) metaTag.setAttribute('content', originalMetaDescription);
     } else {
       setExpandedPostId(postDateStr);
+      markFirstPostExpanded();
       navigate(`/${postDateStr}`, { replace: false });
     }
   }, [expandedPostId, navigate]);
