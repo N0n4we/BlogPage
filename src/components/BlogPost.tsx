@@ -7,7 +7,9 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-markdown';
 import { parseMarkdownWithFootnotes, createSummaryFromMarkdown } from '../utils/markdown';
+import { devourContent } from '../utils/devour';
 import { useGlitchEffect } from '../hooks/useGlitchEffect';
+import { useContentTransition } from '../hooks/useContentTransition';
 import { BlogPost as BlogPostType } from '../hooks/useBlogPosts';
 
 interface BlogPostProps {
@@ -16,133 +18,111 @@ interface BlogPostProps {
   onToggle: () => void;
 }
 
+/** 首次折叠时替换原文的 mantra 短语 */
+const DEVOUR_MANTRA = 'The past cannot define me.';
+
 export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) {
+  // ---- 内容状态 ----
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [contentError, setContentError] = useState(false);
-  const fullContentRef = useRef<HTMLDivElement>(null);
+  const eatenRef = useRef(false);
+
+  // ---- DOM refs ----
   const postRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const onEndRef = useRef<((e: TransitionEvent) => void) | null>(null);
+  const { containerRef, expand, collapse } = useContentTransition();
 
+  // ---- 鼠标涟漪 ----
   const handleMouseMove = useCallback((e: MouseEvent<HTMLElement>) => {
     if (!postRef.current) return;
     const rect = postRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    postRef.current.style.setProperty('--mouse-x', `${x}px`);
-    postRef.current.style.setProperty('--mouse-y', `${y}px`);
+    postRef.current.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+    postRef.current.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
   }, []);
 
-  const animateExpand = useCallback(() => {
-    const el = fullContentRef.current;
-    if (!el) return;
-    // Remove any prior transitionend listener so it doesn't fire on a later collapse.
-    if (onEndRef.current) {
-      el.removeEventListener('transitionend', onEndRef.current);
-      onEndRef.current = null;
-    }
-    el.style.maxHeight = 'none';
-    const target = el.scrollHeight;
-    el.style.maxHeight = '0px';
-    el.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions -- force reflow
-    el.classList.add('expanded');
-    el.style.maxHeight = target + 'px';
-
-    const onEnd = (e: TransitionEvent) => {
-      if (e.propertyName === 'max-height') {
-        el.style.maxHeight = 'none';
-        el.removeEventListener('transitionend', onEnd);
-        onEndRef.current = null;
-      }
-    };
-    onEndRef.current = onEnd;
-    el.addEventListener('transitionend', onEnd);
-  }, []);
-
-  const animateCollapse = useCallback(() => {
-    const el = fullContentRef.current;
-    if (!el) return;
-    // Remove any prior expand-transitionend listener — otherwise it would fire
-    // when the collapse's max-height transition reaches 0 and snap maxHeight
-    // back to 'none' (visible "snap to original" glitch).
-    if (onEndRef.current) {
-      el.removeEventListener('transitionend', onEndRef.current);
-      onEndRef.current = null;
-    }
-    if (getComputedStyle(el).maxHeight === 'none') {
-      el.style.maxHeight = el.scrollHeight + 'px';
-      el.offsetHeight; // eslint-disable-line @typescript-eslint/no-unused-expressions -- force reflow
-    }
-    el.style.maxHeight = '0px';
-    el.classList.remove('expanded');
-  }, []);
-
+  // ---- 获取 Markdown 内容 ----
   useEffect(() => {
-    if (isExpanded && !content) {
-      setContentError(false);
-      setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- intentional fetch trigger
-      const url = `/blogs/${encodeURIComponent(post.file)}`;
-      fetch(url, { cache: 'no-store' })
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.text();
-        })
-        .then(async markdown => {
-          const summary = createSummaryFromMarkdown(markdown);
-          if (summary) {
-            const metaTag = document.querySelector('meta[name="description"]');
-            if (metaTag) metaTag.setAttribute('content', summary);
-          }
-          const htmlContent = await parseMarkdownWithFootnotes(markdown);
-          setContent(htmlContent);
-        })
-        .catch(err => {
-          setContent(`<p style="color: var(--warning-color);">加载失败：${err.message}</p>`);
-          setContentError(true);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
+    if (!isExpanded || content) return;
+
+    setContentError(false);
+    setLoading(true);
+
+    const url = `/blogs/${encodeURIComponent(post.file)}`;
+    fetch(url, { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const markdown = await res.text();
+
+        // 更新页面 meta description
+        const summary = createSummaryFromMarkdown(markdown);
+        if (summary) {
+          const metaTag = document.querySelector('meta[name="description"]');
+          if (metaTag) metaTag.setAttribute('content', summary);
+        }
+
+        const htmlContent = await parseMarkdownWithFootnotes(markdown);
+        setContent(htmlContent);
+      })
+      .catch((err) => {
+        setContent(`<p style="color: var(--warning-color);">加载失败：${err.message}</p>`);
+        setContentError(true);
+      })
+      .finally(() => setLoading(false));
   }, [isExpanded, content, post.file]);
 
-  // 展开动画：等待内容加载完成后再触发
+  // ---- 展开 / 折叠 + 吞噬 ----
   useEffect(() => {
+    const isCurrentlyExpanded = containerRef.current?.classList.contains('expanded') ?? false;
+
     if (isExpanded) {
-      // 如果内容还在加载，不触发动画（等待内容加载完成后由下面的 effect 触发）
+      // 还在加载或尚无内容 → 等内容就绪后再触发展开
       if (loading || (!content && !loading)) return;
-      animateExpand();
-    } else if (fullContentRef.current?.classList.contains('expanded')) {
-      animateCollapse();
-    }
-  }, [isExpanded, loading, content, animateExpand, animateCollapse]);
+      expand();
+    } else if (isCurrentlyExpanded) {
+      // 首次折叠：瞬间将原文替换为 mantra
+      if (!eatenRef.current && content && !contentError) {
+        const devouredHtml = devourContent(content, DEVOUR_MANTRA);
 
-  // 内容加载完成后：先执行 Prism 高亮，再触发展开动画
-  useEffect(() => {
-    if (content && fullContentRef.current && isExpanded) {
-      Prism.highlightAllUnder(fullContentRef.current);
-      // 使用 requestAnimationFrame 确保 DOM 已更新后再计算高度
-      const rafId = requestAnimationFrame(() => {
-        const el = fullContentRef.current;
-        if (!el) return;
-        if (!isExpanded) return;
-        if (!el.classList.contains('expanded')) {
-          animateExpand();
-        } else if (getComputedStyle(el).maxHeight !== 'none') {
-          el.style.maxHeight = el.scrollHeight + 'px';
+        // 同步更新 DOM 实现"立马"替换
+        if (contentRef.current) {
+          contentRef.current.innerHTML = devouredHtml;
         }
-      });
-      return () => cancelAnimationFrame(rafId);
+        setContent(devouredHtml);
+        eatenRef.current = true;
+      }
+      collapse();
     }
-  }, [content, isExpanded, animateExpand]);
+  }, [isExpanded, loading, content, contentError, expand, collapse, containerRef]);
 
+  // ---- 内容就绪后 Prism 高亮 + 调整高度 ----
+  useEffect(() => {
+    if (!content || !containerRef.current || !isExpanded) return;
+
+    Prism.highlightAllUnder(containerRef.current);
+
+    const rafId = requestAnimationFrame(() => {
+      const el = containerRef.current;
+      if (!el || !isExpanded) return;
+
+      if (!el.classList.contains('expanded')) {
+        expand();
+      } else if (getComputedStyle(el).maxHeight !== 'none') {
+        el.style.maxHeight = el.scrollHeight + 'px';
+      }
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [content, isExpanded, expand, containerRef]);
+
+  // ---- 点击切换 ----
   const handleClick = (e: MouseEvent<HTMLElement>) => {
     if ((e.target as HTMLElement).closest('.post-full-content')) return;
     onToggle();
   };
 
+  // ---- 初始化鼠标位置 ----
   useEffect(() => {
     if (postRef.current) {
       postRef.current.style.setProperty('--mouse-x', '50%');
@@ -150,9 +130,7 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     }
   }, []);
 
-  // Glitch effect: heavy on body, light on title.
-  // Enabled once content is loaded — runs continuously through expand/collapse
-  // transitions so glitches never visibly "restart" when the user toggles a post.
+  // ---- Glitch 效果 ----
   useGlitchEffect(titleRef, {
     enabled: !!content && !contentError,
     intensity: 'light',
@@ -163,6 +141,7 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     intensity: 'heavy',
   });
 
+  // ---- 渲染 ----
   return (
     <article
       ref={postRef}
@@ -176,15 +155,15 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
       <div className="post-content-wrapper">
         <h3 ref={titleRef}>{post.title}</h3>
         <p className="post-meta">{post.displayDate}</p>
-        <div className="post-full-content" ref={fullContentRef}>
+
+        <div className="post-full-content" ref={containerRef}>
           <div
             className="rendered-content"
             ref={contentRef}
             dangerouslySetInnerHTML={{
-              __html: loading ? '<p style="opacity:.8">正在加载...</p>' : content
+              __html: loading ? '<p style="opacity:.8">正在加载...</p>' : content,
             }}
           />
-
         </div>
       </div>
     </article>
