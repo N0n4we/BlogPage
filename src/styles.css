@@ -982,11 +982,29 @@ pre code,
 
 /* ---------- Glitch Effect ---------- */
 
-/* Blackout spans: invisible text chunks that blend with background */
+/* Blackout spans: "cut-out" recessed below the text surface.
+   Inner shadow + scanline texture + subtle dark edge create a
+   convincing depression depth cue, not just a flat gap. */
 .glitch-blackout {
   display: inline-block;
-  background: var(--post-background);
+  /* Fill: background color with subtle scanline overlay.
+     Uses 2.5px scanline — different frequency from CRT (4px)
+     and glitch chars (3px), creating triple-interference depth. */
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 1.25px,
+      rgba(0, 0, 0, 0.03) 1.25px,
+      rgba(0, 0, 0, 0.03) 2.5px
+    ),
+    var(--post-background);
   color: transparent;
+  /* Dark 1px edge — simulates the lip of the recessed cut,
+     where the background "tears" as it dips below the surface. */
+  outline: 1px solid rgba(0, 0, 0, 0.12);
+  outline-offset: -1px;
+  border-radius: 1px;
   /* Smooth transition so blackout spans fade in/out naturally
      during glitch cycle rotation rather than blinking abruptly. */
   transition: opacity 0.12s ease;
