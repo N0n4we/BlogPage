@@ -1018,19 +1018,16 @@ pre code,
 .glitch-chars {
   display: inline-block;
   color: var(--warning-color);
-  /* RGB chromatic aberration: cyan left fringe + magenta right fringe.
-     Classic analog video color-fringe that reads as light refracting
-     through depth layers. Strongest on the front layer. */
+  /* RGB chromatic aberration: wider offsets match the deeper forward
+     Z distance (+60~+120), creating stronger color-fringe separation. */
   text-shadow:
-    -2.2px 0 1.6px rgba(0, 255, 255, 0.55),
-    2.2px 0 1.6px rgba(255, 0, 255, 0.55),
-    -0.8px 0.4px 0.6px rgba(0, 255, 255, 0.25),
-    0.8px -0.4px 0.6px rgba(255, 0, 255, 0.25);
-  /* Directional drop-shadow: light source from upper-left,
-     shadow falls down-right, creating "floating above surface" illusion.
-     Slightly subdued offset / blur so the shadow reads as a gentle lift
-     rather than a harsh cut-out on the dark background. */
-  filter: drop-shadow(3px 5px 3.5px rgba(0, 0, 0, 0.60));
+    -3.5px 0 2px rgba(0, 255, 255, 0.60),
+    3.5px 0 2px rgba(255, 0, 255, 0.60),
+    -1.2px 0.6px 0.8px rgba(0, 255, 255, 0.30),
+    1.2px -0.6px 0.8px rgba(255, 0, 255, 0.30);
+  /* Larger drop-shadow — further forward means bigger perceived shadow
+     on the surface below, reinforcing the extended depth gap. */
+  filter: drop-shadow(5px 8px 6px rgba(0, 0, 0, 0.70));
   /* Scanline micro-pattern at 3px — different frequency from CRT's 4px
      overlay, producing moiré depth through interference. */
   background-image:
@@ -1044,7 +1041,7 @@ pre code,
   /* Smooth opacity transition for natural appear/disappear during
      glitch cycle rotation (removeSomeGlitchSpans / applyGlitchChars). */
   transition: opacity 0.15s ease;
-  animation: glitch-jitter 0.06s steps(3, jump-start) infinite;
+  animation: glitch-jitter 0.05s steps(3, jump-start) infinite;
 }
 
 /* ---- Mid layer: softer aberration, lighter jitter ---- */
@@ -1063,28 +1060,30 @@ pre code,
       rgba(0, 0, 0, 0.03) 3px
     );
   transition: opacity 0.15s ease;
-  animation: glitch-jitter-mid 0.09s steps(3, jump-start) infinite;
+  animation: glitch-jitter-mid 0.08s steps(3, jump-start) infinite;
 }
 
 /* ---- Back layer: faintest aberration, slowest jitter ---- */
 .glitch-chars-back {
   display: inline-block;
   color: var(--warning-color);
-  /* Strengthened from 0.15→0.25 so the back layer contributes visible
-     color-fringe depth even at its lowest opacity (0.30). */
+  /* Subtle color fringe — back layer is distant so aberration is faint.
+     Offset kept narrow to match the small perceived size at depth. */
   text-shadow:
-    -0.9px 0 0.8px rgba(0, 255, 255, 0.25),
-    0.9px 0 0.8px rgba(255, 0, 255, 0.25);
+    -0.5px 0 0.5px rgba(0, 255, 255, 0.18),
+    0.5px 0 0.5px rgba(255, 0, 255, 0.18);
+  /* Fainter scanline — distant objects receive less surface detail. */
   background-image:
     repeating-linear-gradient(
       0deg,
       transparent 0px,
       transparent 1.5px,
-      rgba(0, 0, 0, 0.02) 1.5px,
-      rgba(0, 0, 0, 0.02) 3px
+      rgba(0, 0, 0, 0.015) 1.5px,
+      rgba(0, 0, 0, 0.015) 3px
     );
   transition: opacity 0.15s ease;
-  animation: glitch-jitter-back 0.14s steps(3, jump-start) infinite;
+  /* Slowest jitter — distant motion parallax is less pronounced. */
+  animation: glitch-jitter-back 0.16s steps(3, jump-start) infinite;
 }
 
 /* ---------- CRT Overlay (Scanlines + Film Grain) ---------- */

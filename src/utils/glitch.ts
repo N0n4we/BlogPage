@@ -123,11 +123,11 @@ export function applyBlackout(
   span.className = 'glitch-blackout';
   // Depth: scale down + translateZ backward.
   // translateZ is a no-op in flat contexts (content area), works in 3D (title).
-  // Steeper depth curve gives blackout spans a more pronounced recession,
-  // so they read clearly as "behind" the text plane rather than flat gaps.
-  const recess = 2 + Math.random() * 9;              // 2–11
-  const shrink = (1 - recess * 0.026).toFixed(3);    // 0.974–0.714
-  const depth = (-recess * 8).toFixed(0);            // −16 to −88 px
+  // Steeper depth curve — blackout spans now recess further behind
+  // the text plane, matching the expanded layer depth range.
+  const recess = 3 + Math.random() * 12;             // 3–15
+  const shrink = (1 - recess * 0.025).toFixed(3);    // 0.925–0.625
+  const depth = (-recess * 10).toFixed(0);           // −30 to −150 px
   // Independent properties — won't be overridden by CSS `transform` animations.
   span.style.scale = shrink;
   span.style.translate = `0 0 ${depth}px`;
@@ -157,44 +157,41 @@ interface LayerPreset {
 
 const LAYER_PRESETS: LayerPreset[] = [
   {
-    // Back layer — deepest recess, smallest scale.
-    // Raised opacity floor to ensure it reads against dark backgrounds;
-    // widened lateral spread so the 3-layer slab is apparent even at
-    // subtle card tilt angles (±3–5°).
+    // Back layer — deepest recess, pushed far behind the text plane.
+    // Wider lateral spread compensates for the larger Z distance so
+    // parallax separation remains visible at subtle card tilts.
     cls: 'glitch-chars-back',
-    depthMin: -98,
-    depthMax: -52,
-    scaleMin: 0.70,
-    scaleMax: 0.86,
-    opacityMin: 0.30,
-    opacityMax: 0.48,
-    offsetXRange: 5.5,
-    offsetYRange: 3.5,
+    depthMin: -180,
+    depthMax: -100,
+    scaleMin: 0.55,
+    scaleMax: 0.78,
+    opacityMin: 0.22,
+    opacityMax: 0.40,
+    offsetXRange: 8.0,
+    offsetYRange: 5.0,
   },
   {
-    // Mid layer — moderate recess, sits between the original text plane
-    // and the back layer. Scale straddles 1.0 so mid characters feel
-    // near-parity with the body text while remaining clearly displaced.
+    // Mid layer — near the text plane, scale straddles 1.0 so
+    // characters feel close-to-parity while still displaced.
     cls: 'glitch-chars-mid',
-    depthMin: -38,
-    depthMax: -12,
-    scaleMin: 0.88,
-    scaleMax: 1.03,
-    opacityMin: 0.45,
-    opacityMax: 0.70,
-    offsetXRange: 3.5,
-    offsetYRange: 2.5,
+    depthMin: -45,
+    depthMax: -15,
+    scaleMin: 0.90,
+    scaleMax: 1.04,
+    opacityMin: 0.40,
+    opacityMax: 0.65,
+    offsetXRange: 4.5,
+    offsetYRange: 3.0,
   },
   {
-    // Front layer — slightly forward of the text plane, boldest and
-    // most opaque. Compressed scale range (max ±8%) avoids the
-    // previous ±12% blow-up that could feel cartoonishly oversized.
+    // Front layer — pushed well forward of the text plane for dramatic
+    // depth gap. Scale kept tight to avoid cartoonish blow-up.
     cls: 'glitch-chars',
-    depthMin: 15,
-    depthMax: 55,
-    scaleMin: 1.02,
-    scaleMax: 1.08,
-    opacityMin: 0.85,
+    depthMin: 60,
+    depthMax: 120,
+    scaleMin: 1.04,
+    scaleMax: 1.10,
+    opacityMin: 0.90,
     opacityMax: 1.0,
     offsetXRange: 1.5,
     offsetYRange: 1.0,
