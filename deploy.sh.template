@@ -3,3 +3,6 @@
 npm run build
 
 rsync -avz --delete "$(dirname $0)/dist/" root@xxx.xxx.xxx.xxx:/var/www/n0n4w3.cn
+
+# Restart health check server (PM2)
+ssh root@xxx.xxx.xxx.xxx "pm2 restart blog-health || pm2 start /var/www/n0n4w3.cn/../server/index.js --name blog-health"

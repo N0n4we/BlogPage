@@ -92,6 +92,13 @@
   /* 警告/错误颜色 */
   --warning-color: #fb4934;
   /* bright_red */
+
+  /* CRT overlay */
+  --crt-scanline-opacity: 0.08;
+  --crt-scanline-spacing: 4px;
+  --crt-grain-opacity: 0.04;
+  --crt-grain-speed: 0.3s;
+  --crt-z-index: 9998;
 }
 
 html,
@@ -309,10 +316,14 @@ body {
   width: 100%;
   margin: 0;
   cursor: pointer;
+  perspective: 1200px;
 }
 
 .post-content-wrapper {
   padding: 1.0rem 1.5rem;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease-out;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
 }
 
 /* 展开的博客全文样式 */
@@ -571,6 +582,7 @@ body {
   color: var(--text-color);
   font-weight: 500;
   transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transform: translateZ(25px);
 }
 
 .post-meta {
@@ -578,6 +590,7 @@ body {
   font-size: 0.95rem;
   margin-bottom: 0;
   transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transform: translateZ(-10px);
 }
 
 /* 仅正文段落需要间距与字号 */
@@ -967,6 +980,74 @@ pre code,
   animation: glitch-jitter 0.06s steps(3, jump-start) infinite;
 }
 
+/* ---------- CRT Overlay (Scanlines + Film Grain) ---------- */
+
+/* Grain animation: discrete steps for static-like flicker */
+@keyframes crt-grain {
+  0%, 100% { background-position: 0 0; }
+  20%      { background-position: -20px -10px; }
+  40%      { background-position: 15px -25px; }
+  60%      { background-position: -10px 20px; }
+  80%      { background-position: 25px 15px; }
+}
+
+/* Default: overlay off */
+body::after {
+  content: none;
+}
+
+/* Enabled: CRT overlay with scanlines + animated film grain */
+body.crt-enabled::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--crt-z-index, 9998);
+  will-change: background-position;
+  transform: translateZ(0);
+
+  /* Scanlines: horizontal repeating gradient */
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, var(--crt-scanline-opacity, 0.08)) 2px,
+      rgba(0, 0, 0, var(--crt-scanline-opacity, 0.08)) 4px
+    ) repeat;
+
+  /* Film grain: SVG feTurbulence noise texture */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-blend-mode: normal;
+  background-repeat: repeat, repeat;
+  background-size: auto auto, 200px 200px;
+  animation: crt-grain var(--crt-grain-speed, 0.3s) steps(6) infinite;
+}
+
+/* Respect reduced-motion preference: disable grain animation */
+@media (prefers-reduced-motion: reduce) {
+  body.crt-enabled::after {
+    animation: none;
+  }
+}
+
+/* ---------- Custom Cursor (PRD-002) ---------- */
+
+.custom-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  /* Promote to compositor layer */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ---------- Glitch Effect ---------- */
+
 @keyframes glitch-jitter {
   0% {
     transform: translate(0, 0);
@@ -979,5 +1060,286 @@ pre code,
   }
   100% {
     transform: translate(0, 0);
+  }
+}
+
+/* ---------- Audio Visualizer (PRD-004) ---------- */
+
+.audio-visualizer {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  height: 160px;
+  width: 100%;
+  overflow: hidden;
+  margin: 0 auto;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+/* Stereo column: 50% top (left ch) + 50% bottom (right ch) */
+.audio-visualizer--stereo .audio-visualizer__col {
+  flex: 1;
+  min-width: 3px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Shared bar base */
+.audio-visualizer__bar {
+  width: 100%;
+  transform: scaleY(0);
+  will-change: transform;
+}
+
+/* Left channel — upper half, grows upward */
+.audio-visualizer__bar--left {
+  flex: 1;
+  transform-origin: bottom center;
+  border-radius: 2px 2px 0 0;
+  margin-bottom: 1px;
+}
+
+/* Right channel — lower half, grows downward */
+.audio-visualizer__bar--right {
+  flex: 1;
+  transform-origin: top center;
+  border-radius: 0 0 2px 2px;
+  margin-top: 1px;
+}
+
+/* Loading state — bars visible at minimal height before analyser initialises */
+.audio-visualizer--loading .audio-visualizer__bar {
+  animation: visualizer-loading-pulse 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.05s);
+}
+
+@keyframes visualizer-loading-pulse {
+  0%, 100% { transform: scaleY(0.06); }
+  50% { transform: scaleY(0.14); }
+}
+
+/* Static fallback bars (pulsed gradient placeholder) */
+.audio-visualizer--fallback {
+  position: relative;
+}
+
+.audio-visualizer__placeholder {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  opacity: 0.3;
+}
+
+.audio-visualizer__bar--static {
+  flex: 1;
+  min-width: 3px;
+  max-width: 10px;
+  height: 30%;
+  border-radius: 2px 2px 0 0;
+  animation: visualizer-pulse 2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.06s);
+}
+
+.audio-visualizer__fallback-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--post-meta-color);
+  pointer-events: none;
+}
+
+@keyframes visualizer-pulse {
+  0%, 100% { height: 20%; }
+  50% { height: 50%; }
+}
+
+/* Responsive: tighter spacing on narrow screens */
+@media (max-width: 480px) {
+  .audio-visualizer {
+    height: 100px;
+    gap: 2px;
+    padding: 0 4px;
+  }
+
+  .audio-visualizer--stereo .audio-visualizer__col {
+    min-width: 2px;
+  }
+}
+
+/* Accessibility: disable animation for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  .audio-visualizer__bar {
+    transform: scaleY(0) !important;
+    transition: none !important;
+    will-change: auto;
+  }
+
+  .audio-visualizer__bar--static {
+    animation: none;
+  }
+
+  .audio-visualizer__fallback-text::after {
+    content: ' (animation disabled)';
+  }
+}
+
+/* ---------- 3D Tilt Touch Disable (PRD-003) ---------- */
+
+/* Disable all tilt and depth transforms on touch devices */
+@media (pointer: coarse) {
+  .post-content-wrapper {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .post-content-wrapper h3,
+  .post-content-wrapper .post-meta {
+    transform: none !important;
+  }
+}
+
+/* Accessibility: disable tilt for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  .post-content-wrapper {
+    transform: none !important;
+    transition: none !important;
+    transform-style: flat !important;
+  }
+
+  .post h3,
+  .post .post-meta {
+    transform: none !important;
+  }
+}
+
+/* ---------- Ambient Dynamic Glow (PRD-006) ---------- */
+
+#ambient-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(
+      circle at var(--glow-x, 50%) var(--glow-y, 50%),
+      rgba(215, 153, 33, 0.08) 0%,      /* Gruvbox #d79921 bright_yellow */
+      rgba(215, 153, 33, 0.04) 25%,
+      rgba(181, 118, 20, 0.05) 50%,      /* Gruvbox #b57614 neutral_yellow */
+      transparent 70%
+    );
+  will-change: background;
+  min-width: 100vw;
+  min-height: 100vh;
+}
+
+/* Disable glow on touch devices */
+@media (pointer: coarse) {
+  #ambient-glow {
+    opacity: 0 !important;
+  }
+}
+
+/* Disable glow for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  #ambient-glow {
+    opacity: 0;
+  }
+}
+
+/* ---------- Scroll-Triggered Reveal Animations (PRD-005) ---------- */
+
+/* Initial hidden state — visibility: hidden prevents any flash before animation */
+.reveal-enter > * {
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Revealed state */
+.reveal-enter.reveal-active > * {
+  visibility: visible;
+  animation: reveal-fade-in 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes reveal-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger: cascading delay for each child */
+.reveal-enter > *:nth-child(1) { transition-delay: 0ms; }
+.reveal-enter > *:nth-child(2) { transition-delay: 80ms; }
+.reveal-enter > *:nth-child(3) { transition-delay: 160ms; }
+.reveal-enter > *:nth-child(4) { transition-delay: 240ms; }
+.reveal-enter > *:nth-child(5) { transition-delay: 320ms; }
+.reveal-enter > *:nth-child(6) { transition-delay: 400ms; }
+.reveal-enter > *:nth-child(7) { transition-delay: 480ms; }
+.reveal-enter > *:nth-child(8) { transition-delay: 560ms; }
+.reveal-enter > *:nth-child(9) { transition-delay: 640ms; }
+.reveal-enter > *:nth-child(10) { transition-delay: 720ms; }
+
+/* Reduced motion: no animation */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-enter > * {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================
+   Scroll-Triggered Reveal Animations (PRD-005)
+   ============================================ */
+
+/* Initial hidden state — posts start invisible and offset downward */
+.reveal-enter > * {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: opacity, transform;
+}
+
+/* Revealed state — IntersectionObserver adds this class */
+.reveal-enter.reveal-active > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger: each child animates with a progressive delay */
+.reveal-enter > *:nth-child(1) { transition-delay: 0ms; }
+.reveal-enter > *:nth-child(2) { transition-delay: 80ms; }
+.reveal-enter > *:nth-child(3) { transition-delay: 160ms; }
+.reveal-enter > *:nth-child(4) { transition-delay: 240ms; }
+.reveal-enter > *:nth-child(5) { transition-delay: 320ms; }
+.reveal-enter > *:nth-child(6) { transition-delay: 400ms; }
+.reveal-enter > *:nth-child(7) { transition-delay: 480ms; }
+.reveal-enter > *:nth-child(8) { transition-delay: 560ms; }
+.reveal-enter > *:nth-child(9) { transition-delay: 640ms; }
+.reveal-enter > *:nth-child(10) { transition-delay: 720ms; }
+
+/* Accessibility: no animation when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-enter > * {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

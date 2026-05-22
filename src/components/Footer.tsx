@@ -33,7 +33,7 @@ function swapRandomChars(str: string): string {
   return chars.join('');
 }
 
-export default function Footer() {
+export default function Footer({ revealProgress }: { revealProgress: number }) {
   const [emoji, setEmoji] = useState('😋');
   const [rights, setRights] = useState(ORIGINAL_RIGHTS);
 
@@ -52,8 +52,24 @@ export default function Footer() {
 
   return (
     <footer className="footer">
-      <div className="container">
-        <p>&copy;2025 N0n4w3. {rights} {emoji}</p>
+      <div
+        className="container"
+        style={{
+          opacity: revealProgress,
+          transform: `translateY(${(1 - revealProgress) * 20}px)`,
+        }}
+      >
+        <p>
+          {/* Status badge — uncomment and replace monitor-id after Uptime Kuma setup */}
+          {/* <a href="https://status.n0n4w3.cn" target="_blank" rel="noopener noreferrer" className="status-badge">
+            <img
+              src="https://status.n0n4w3.cn/api/badge/1/status?style=flat&label=n0n4w3.cn"
+              alt="n0n4w3.cn status"
+              height="20"
+            />
+          </a> */}
+          &copy;2025 N0n4w3. {rights} {emoji}
+        </p>
       </div>
     </footer>
   );

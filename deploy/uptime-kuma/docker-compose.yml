@@ -1,0 +1,21 @@
+# Uptime Kuma — Docker Compose
+# Deploy to /opt/uptime-kuma/ on the production server
+#
+# Setup:
+#   1. sudo mkdir -p /opt/uptime-kuma/data
+#   2. Copy this file to /opt/uptime-kuma/docker-compose.yml
+#   3. cd /opt/uptime-kuma && docker compose up -d
+#   4. Access web UI at https://status.n0n4w3.cn (after nginx config deployed)
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: always
+    ports:
+      - "127.0.0.1:3002:3001"    # localhost only — nginx reverse-proxies public traffic
+    volumes:
+      - ./data:/app/data          # persistent storage for monitor config + history
+    environment:
+      - UPTIME_KUMA_PORT=3001
+      - UPTIME_KUMA_HOST=0.0.0.0
