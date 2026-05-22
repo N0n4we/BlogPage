@@ -22,6 +22,14 @@ interface BlogPostProps {
 /** 首次折叠时替换原文的 mantra 短语 */
 const DEVOUR_MANTRA = 'The past cannot define me.';
 
+/** 3D tilt max angle in degrees */
+const TILT_MAX_ANGLE = 8;
+
+/** Touch device detection — computed once at module load */
+const isTouchDevice =
+  typeof window !== 'undefined' &&
+  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
 export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) {
   // Content pipeline: fetch + parse markdown (skipped when collapsed)
   const { html, summary, loading, error } = useContentPipeline(
@@ -51,12 +59,22 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     return () => window.removeEventListener('resize', syncHeight);
   }, [isExpanded, syncHeight]);
 
-  // ---- 鼠标涟漪 ----
+  // ---- 鼠标涟漪 + 3D tilt ----
   const handleMouseMove = useCallback((e: MouseEvent<HTMLElement>) => {
     if (!postRef.current) return;
     const rect = postRef.current.getBoundingClientRect();
-    postRef.current.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-    postRef.current.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    postRef.current.style.setProperty('--mouse-x', `${mouseX}px`);
+    postRef.current.style.setProperty('--mouse-y', `${mouseY}px`);
+
+    // 3D tilt (disabled on touch devices)
+    if (!isTouchDevice) {
+      const tiltX = ((mouseY / rect.height) - 0.5) * -TILT_MAX_ANGLE;
+      const tiltY = ((mouseX / rect.width) - 0.5) * TILT_MAX_ANGLE;
+      postRef.current.style.setProperty('--tilt-x', `${tiltX}deg`);
+      postRef.current.style.setProperty('--tilt-y', `${tiltY}deg`);
+    }
   }, []);
 
   // ---- 展开 / 折叠 + 吞噬 ----
@@ -106,11 +124,13 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     onToggle();
   };
 
-  // ---- 初始化鼠标位置 ----
+  // ---- 初始化鼠标位置 & tilt ----
   useEffect(() => {
     if (postRef.current) {
       postRef.current.style.setProperty('--mouse-x', '50%');
       postRef.current.style.setProperty('--mouse-y', '50%');
+      postRef.current.style.setProperty('--tilt-x', '0deg');
+      postRef.current.style.setProperty('--tilt-y', '0deg');
     }
   }, []);
 

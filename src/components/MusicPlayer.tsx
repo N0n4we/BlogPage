@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import APlayer from 'aplayer';
+import AudioVisualizer from './AudioVisualizer';
 
 interface Song {
   name: string;
@@ -21,6 +22,8 @@ export default function MusicPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<APlayer | null>(null);
   const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -36,6 +39,11 @@ export default function MusicPlayer() {
     });
 
     playerRef.current = ap;
+
+    // Expose the underlying <audio> element for the visualizer
+    const audio = (ap as unknown as { audio: HTMLAudioElement }).audio;
+    if (audio) setAudioElement(audio);
+
     let autoplayAttempted = false;
 
     ap.on('canplay', () => {
@@ -57,11 +65,13 @@ export default function MusicPlayer() {
     });
 
     ap.on('play', () => {
+      setIsPlaying(true);
       if (retryIntervalRef.current) {
         clearInterval(retryIntervalRef.current);
         retryIntervalRef.current = null;
       }
     });
+    ap.on('pause', () => setIsPlaying(false));
 
     return () => {
       if (retryIntervalRef.current) {
@@ -80,6 +90,7 @@ export default function MusicPlayer() {
           <div ref={containerRef} id="aplayer"></div>
         </div>
       </div>
+      <AudioVisualizer audioElement={audioElement} isPlaying={isPlaying} />
     </div>
   );
 }
