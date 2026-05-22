@@ -983,8 +983,8 @@ pre code,
 /* ---------- Glitch Effect ---------- */
 
 /* Blackout spans: "cut-out" recessed below the text surface.
-   Inner shadow + scanline texture + subtle dark edge create a
-   convincing depression depth cue, not just a flat gap. */
+   Scanline texture + perspective recession create depth without
+   relying on shadow — pure geometry and surface detail. */
 .glitch-blackout {
   display: inline-block;
   /* Fill: background color with subtle scanline overlay.
@@ -995,16 +995,11 @@ pre code,
       0deg,
       transparent 0px,
       transparent 1.25px,
-      rgba(0, 0, 0, 0.03) 1.25px,
-      rgba(0, 0, 0, 0.03) 2.5px
+      rgba(0, 0, 0, 0.035) 1.25px,
+      rgba(0, 0, 0, 0.035) 2.5px
     ),
     var(--post-background);
   color: transparent;
-  /* Dark 1px edge — simulates the lip of the recessed cut,
-     where the background "tears" as it dips below the surface. */
-  outline: 1px solid rgba(0, 0, 0, 0.12);
-  outline-offset: -1px;
-  border-radius: 1px;
   /* Smooth transition so blackout spans fade in/out naturally
      during glitch cycle rotation rather than blinking abruptly. */
   transition: opacity 0.12s ease;
@@ -1045,15 +1040,14 @@ pre code,
   display: inline-block;
   color: var(--warning-color);
   /* RGB chromatic aberration: wider offsets match the deeper forward
-     Z distance (+60~+120), creating stronger color-fringe separation. */
+     Z distance (+60~+120), creating strong color-fringe separation.
+     No drop-shadow — depth comes purely from chromatic displacement
+     and perspective-driven translateZ. */
   text-shadow:
     -3.5px 0 2px rgba(0, 255, 255, 0.60),
     3.5px 0 2px rgba(255, 0, 255, 0.60),
     -1.2px 0.6px 0.8px rgba(0, 255, 255, 0.30),
     1.2px -0.6px 0.8px rgba(255, 0, 255, 0.30);
-  /* Larger drop-shadow — further forward means bigger perceived shadow
-     on the surface below, reinforcing the extended depth gap. */
-  filter: drop-shadow(5px 8px 6px rgba(0, 0, 0, 0.70));
   /* Scanline micro-pattern at 3px — different frequency from CRT's 4px
      overlay, producing moiré depth through interference. */
   background-image:
@@ -1166,8 +1160,7 @@ body.crt-enabled::after {
   .glitch-chars-mid,
   .glitch-chars-back {
     animation: none !important;
-    /* Keep chromatic aberration (text-shadow) and drop-shadow (filter)
-       as static depth cues — the AC requires color/shadow preserved. */
+    /* Keep chromatic aberration (text-shadow) as static depth cue. */
   }
 
   /* Hide animated noise overlay; static scanline pattern stays */

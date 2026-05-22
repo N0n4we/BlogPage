@@ -124,19 +124,15 @@ export function applyBlackout(
   // Depth: scale down + translateZ backward.
   // translateZ is a no-op in flat contexts (content area), works in 3D (title).
   // Depth: smaller scale reduction so translateZ carries more weight
-  // through perspective. Inner shadow (CSS) + the recessed scale
-  // together create a clear "cut below the surface" depth cue.
+  // through perspective. Combined with scanline texture (CSS) and
+  // chromatic displacement from adjacent glitch chars for depth.
   const recess = 3 + Math.random() * 12;             // 3–15
   const shrink = (1 - recess * 0.015).toFixed(3);    // 0.955–0.775
   const depth = (-recess * 12).toFixed(0);           // −36 to −180 px
-  // Per-span randomized inner-shadow depth for organic variation.
-  const shadowDepth = (recess * 0.22).toFixed(1);
-  const shadowAlpha = (0.25 + recess * 0.02).toFixed(2);
   // Independent properties — won't be overridden by CSS `transform` animations.
   span.style.scale = shrink;
   span.style.translate = `0 0 ${depth}px`;
   span.style.transformOrigin = 'center';
-  span.style.boxShadow = `inset 1px ${shadowDepth}px ${shadowDepth}px rgba(0,0,0,${shadowAlpha})`;
   span.textContent = middle;
   fragment.appendChild(span);
 
