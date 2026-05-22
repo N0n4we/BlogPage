@@ -1160,3 +1160,32 @@ body.crt-enabled::after {
     content: ' (animation disabled)';
   }
 }
+
+/* ---------- 3D Tilt Touch Disable (PRD-003) ---------- */
+
+/* Disable all tilt and depth transforms on touch devices */
+@media (pointer: coarse) {
+  .post-content-wrapper {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .post-content-wrapper h3,
+  .post-content-wrapper .post-meta {
+    transform: none !important;
+  }
+}
+
+/* Accessibility: disable tilt for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  .post-content-wrapper {
+    transform: none !important;
+    transition: none !important;
+    transform-style: flat !important;
+  }
+
+  .post h3,
+  .post .post-meta {
+    transform: none !important;
+  }
+}
