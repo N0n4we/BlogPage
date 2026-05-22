@@ -123,9 +123,9 @@ export function applyBlackout(
   span.className = 'glitch-blackout';
   // Depth: scale down + translateZ backward.
   // translateZ is a no-op in flat contexts (content area), works in 3D (title).
-  const recess = 4 + Math.random() * 8;              // 4–12
-  const shrink = (1 - recess * 0.025).toFixed(3);     // 0.90–0.70
-  const depth = (-recess * 6).toFixed(0);              // −24 to −72 px
+  const recess = 3 + Math.random() * 7;              // 3–10
+  const shrink = (1 - recess * 0.022).toFixed(3);    // 0.934–0.78
+  const depth = (-recess * 7).toFixed(0);            // −21 to −70 px
   // Independent properties — won't be overridden by CSS `transform` animations.
   span.style.scale = shrink;
   span.style.translate = `0 0 ${depth}px`;
@@ -155,37 +155,42 @@ interface LayerPreset {
 
 const LAYER_PRESETS: LayerPreset[] = [
   {
+    // Back layer — deepest recess, smallest scale, faintest.
     cls: 'glitch-chars-back',
-    depthMin: -80,
-    depthMax: -40,
-    scaleMin: 0.7,
-    scaleMax: 0.85,
-    opacityMin: 0.25,
-    opacityMax: 0.45,
-    offsetXRange: 3,
-    offsetYRange: 2,
+    depthMin: -90,
+    depthMax: -50,
+    scaleMin: 0.70,
+    scaleMax: 0.84,
+    opacityMin: 0.22,
+    opacityMax: 0.42,
+    offsetXRange: 4.0,
+    offsetYRange: 2.5,
   },
   {
+    // Mid layer — moderate recess with enough X/Y displacement to create
+    // visible lateral separation from the front layer on card tilt.
     cls: 'glitch-chars-mid',
-    depthMin: -30,
-    depthMax: -10,
-    scaleMin: 0.9,
-    scaleMax: 1.0,
-    opacityMin: 0.5,
-    opacityMax: 0.7,
-    offsetXRange: 2,
-    offsetYRange: 1.5,
+    depthMin: -35,
+    depthMax: -12,
+    scaleMin: 0.90,
+    scaleMax: 1.02,
+    opacityMin: 0.48,
+    opacityMax: 0.68,
+    offsetXRange: 3.0,
+    offsetYRange: 2.0,
   },
   {
+    // Front layer — slightly forward of the text plane, largest scale,
+    // most opaque. Narrower scale range avoids oversized blow-up.
     cls: 'glitch-chars',
-    depthMin: 15,
-    depthMax: 45,
-    scaleMin: 1.05,
-    scaleMax: 1.2,
-    opacityMin: 0.8,
+    depthMin: 18,
+    depthMax: 50,
+    scaleMin: 1.04,
+    scaleMax: 1.12,
+    opacityMin: 0.82,
     opacityMax: 1.0,
     offsetXRange: 1.5,
-    offsetYRange: 1,
+    offsetYRange: 1.0,
   },
 ];
 

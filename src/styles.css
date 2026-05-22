@@ -583,6 +583,9 @@ body {
   font-weight: 500;
   transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
   transform: translateZ(25px);
+  /* Enable glitch children to participate in the 3D tilt context
+     so translateZ on individual glitch layers creates parallax. */
+  transform-style: preserve-3d;
 }
 
 .post-meta {
@@ -980,14 +983,19 @@ pre code,
 
 /* ---- Multi-layer glitch group wrapper ---- */
 .glitch-chars-group {
-  display: inline-block;
+  display: inline-grid;
   position: relative;
   isolation: isolate;
+  /* Allow child layers to participate in the parent 3D context
+     (e.g. card tilt rotateX/rotateY) so translateZ creates parallax. */
+  transform-style: preserve-3d;
 }
 
 /* Noise/grain texture overlay on the group wrapper.
    Uses SVG feTurbulence for analog surface detail that
-   interacts with the CRT scanline overlay to produce moiré depth. */
+   interacts with the CRT scanline overlay to produce moiré depth.
+   Higher baseFrequency (0.95 vs CRT's 0.65) creates finer grain on
+   glitch elements that beats against the coarser CRT film grain. */
 .glitch-chars-group::after {
   content: '';
   position: absolute;
@@ -995,10 +1003,10 @@ pre code,
   pointer-events: none;
   z-index: 1;
   mix-blend-mode: overlay;
-  opacity: 0.18;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  opacity: 0.20;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.40'/%3E%3C/svg%3E");
   background-repeat: repeat;
-  background-size: 180px 180px;
+  background-size: 160px 160px;
 }
 
 /* ---- Front layer: strongest aberration + floating shadow ---- */
@@ -1007,24 +1015,25 @@ pre code,
   color: var(--warning-color);
   /* RGB chromatic aberration: cyan left fringe + magenta right fringe.
      Classic analog video color-fringe that reads as light refracting
-     through depth layers. Strongest on the front layer. */
+     through depth layers. Strongest on the front layer.
+     Wider offsets create more "analog glitch" separation. */
   text-shadow:
-    -2px 0 2px rgba(0, 255, 255, 0.55),
-    2px 0 2px rgba(255, 0, 255, 0.55),
-    0 0 1px rgba(0, 255, 255, 0.25),
-    0 0 1px rgba(255, 0, 255, 0.25);
+    -2.5px 0 1.5px rgba(0, 255, 255, 0.6),
+    2.5px 0 1.5px rgba(255, 0, 255, 0.6),
+    -1px 0.5px 0.5px rgba(0, 255, 255, 0.3),
+    1px -0.5px 0.5px rgba(255, 0, 255, 0.3);
   /* Directional drop-shadow: light source from upper-left,
-     shadow falls down-right, creating "floating above surface" illusion */
-  filter: drop-shadow(3px 5px 3px rgba(0, 0, 0, 0.6));
+     shadow falls down-right, creating "floating above surface" illusion. */
+  filter: drop-shadow(4px 6px 4px rgba(0, 0, 0, 0.65));
   /* Scanline micro-pattern at 3px — different frequency from CRT's 4px
-     overlay, producing moiré depth through interference */
+     overlay, producing moiré depth through interference. */
   background-image:
     repeating-linear-gradient(
       0deg,
       transparent 0px,
       transparent 1.5px,
-      rgba(0, 0, 0, 0.04) 1.5px,
-      rgba(0, 0, 0, 0.04) 3px
+      rgba(0, 0, 0, 0.05) 1.5px,
+      rgba(0, 0, 0, 0.05) 3px
     );
   animation: glitch-jitter 0.06s steps(3, jump-start) infinite;
 }
@@ -1034,15 +1043,15 @@ pre code,
   display: inline-block;
   color: var(--warning-color);
   text-shadow:
-    -1.2px 0 1.2px rgba(0, 255, 255, 0.25),
-    1.2px 0 1.2px rgba(255, 0, 255, 0.25);
+    -1.5px 0 1px rgba(0, 255, 255, 0.30),
+    1.5px 0 1px rgba(255, 0, 255, 0.30);
   background-image:
     repeating-linear-gradient(
       0deg,
       transparent 0px,
       transparent 1.5px,
-      rgba(0, 0, 0, 0.02) 1.5px,
-      rgba(0, 0, 0, 0.02) 3px
+      rgba(0, 0, 0, 0.025) 1.5px,
+      rgba(0, 0, 0, 0.025) 3px
     );
   animation: glitch-jitter-mid 0.09s steps(3, jump-start) infinite;
 }
@@ -1052,15 +1061,15 @@ pre code,
   display: inline-block;
   color: var(--warning-color);
   text-shadow:
-    -0.8px 0 0.8px rgba(0, 255, 255, 0.12),
-    0.8px 0 0.8px rgba(255, 0, 255, 0.12);
+    -0.8px 0 0.7px rgba(0, 255, 255, 0.15),
+    0.8px 0 0.7px rgba(255, 0, 255, 0.15);
   background-image:
     repeating-linear-gradient(
       0deg,
       transparent 0px,
       transparent 1.5px,
-      rgba(0, 0, 0, 0.01) 1.5px,
-      rgba(0, 0, 0, 0.01) 3px
+      rgba(0, 0, 0, 0.015) 1.5px,
+      rgba(0, 0, 0, 0.015) 3px
     );
   animation: glitch-jitter-back 0.14s steps(3, jump-start) infinite;
 }
@@ -1119,13 +1128,11 @@ body.crt-enabled::after {
   .glitch-chars-mid,
   .glitch-chars-back {
     animation: none !important;
-    /* Flatten depth effects: remove drop-shadow and chromatic aberration
-       so text remains legible without motion cues */
-    filter: none !important;
-    text-shadow: none !important;
-    background-image: none !important;
+    /* Keep chromatic aberration (text-shadow) and drop-shadow (filter)
+       as static depth cues — the AC requires color/shadow preserved. */
   }
 
+  /* Hide animated noise overlay; static scanline pattern stays */
   .glitch-chars-group::after {
     display: none;
   }
@@ -1148,31 +1155,35 @@ body.crt-enabled::after {
 
 /* ---------- Glitch Jitter Animations ---------- */
 
-/* Front layer: fast, tight jitter with largest displacement */
+/* Front layer: fast, tight jitter with largest displacement.
+   Asymmetric pattern (more horizontal than vertical) mimics
+   analog video horizontal sync jitter. */
 @keyframes glitch-jitter {
   0%   { transform: translate(0, 0); }
-  33%  { transform: translate(1px, -0.5px); }
-  66%  { transform: translate(-0.5px, 1px); }
+  25%  { transform: translate(1.2px, -0.4px); }
+  50%  { transform: translate(-0.8px, 0.5px); }
+  75%  { transform: translate(0.6px, -0.6px); }
   100% { transform: translate(0, 0); }
 }
 
-/* Mid layer: slower jitter with medium displacement */
+/* Mid layer: distinct phase from front, medium displacement.
+   Offset timing (30%/60%/90%) prevents sync with front layer. */
 @keyframes glitch-jitter-mid {
   0%   { transform: translate(0, 0); }
-  25%  { transform: translate(-0.8px, 0.6px); }
-  50%  { transform: translate(0.4px, -0.5px); }
-  75%  { transform: translate(-0.5px, -0.4px); }
+  30%  { transform: translate(-0.9px, 0.5px); }
+  60%  { transform: translate(0.5px, -0.5px); }
+  90%  { transform: translate(-0.4px, -0.3px); }
   100% { transform: translate(0, 0); }
 }
 
-/* Back layer: slowest jitter with smallest displacement,
-   different timing creates independent parallax feel */
+/* Back layer: slowest jitter, smallest displacement,
+   opposite phase to front and mid for true independent motion. */
 @keyframes glitch-jitter-back {
   0%   { transform: translate(0, 0); }
-  20%  { transform: translate(0.7px, -0.4px); }
-  40%  { transform: translate(-0.4px, 0.5px); }
-  60%  { transform: translate(0.3px, 0.3px); }
-  80%  { transform: translate(-0.6px, -0.3px); }
+  20%  { transform: translate(0.6px, -0.3px); }
+  45%  { transform: translate(-0.5px, 0.4px); }
+  70%  { transform: translate(0.3px, 0.3px); }
+  85%  { transform: translate(-0.4px, -0.2px); }
   100% { transform: translate(0, 0); }
 }
 
@@ -1307,16 +1318,20 @@ body.crt-enabled::after {
 
 /* ---------- 3D Tilt Touch Disable (PRD-003) ---------- */
 
-/* Disable all tilt and depth transforms on touch devices */
+/* Disable all tilt and depth transforms on touch devices.
+   Flatten 3D context so glitch translateZ is a no-op — glitch
+   still renders through X/Y offset, scale, and opacity layering. */
 @media (pointer: coarse) {
   .post-content-wrapper {
     transform: none !important;
+    transform-style: flat !important;
     transition: none !important;
   }
 
   .post-content-wrapper h3,
   .post-content-wrapper .post-meta {
     transform: none !important;
+    transform-style: flat !important;
   }
 }
 
