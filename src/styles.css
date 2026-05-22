@@ -1223,3 +1223,83 @@ body.crt-enabled::after {
     opacity: 0;
   }
 }
+
+/* ---------- Scroll-Triggered Reveal Animations (PRD-005) ---------- */
+
+/* Initial hidden state */
+.reveal-enter > * {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: opacity, transform;
+}
+
+/* Revealed state */
+.reveal-enter.reveal-active > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger: cascading delay for each child */
+.reveal-enter > *:nth-child(1) { transition-delay: 0ms; }
+.reveal-enter > *:nth-child(2) { transition-delay: 80ms; }
+.reveal-enter > *:nth-child(3) { transition-delay: 160ms; }
+.reveal-enter > *:nth-child(4) { transition-delay: 240ms; }
+.reveal-enter > *:nth-child(5) { transition-delay: 320ms; }
+.reveal-enter > *:nth-child(6) { transition-delay: 400ms; }
+.reveal-enter > *:nth-child(7) { transition-delay: 480ms; }
+.reveal-enter > *:nth-child(8) { transition-delay: 560ms; }
+.reveal-enter > *:nth-child(9) { transition-delay: 640ms; }
+.reveal-enter > *:nth-child(10) { transition-delay: 720ms; }
+
+/* Reduced motion: no animation */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-enter > * {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================
+   Scroll-Triggered Reveal Animations (PRD-005)
+   ============================================ */
+
+/* Initial hidden state — posts start invisible and offset downward */
+.reveal-enter > * {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: opacity, transform;
+}
+
+/* Revealed state — IntersectionObserver adds this class */
+.reveal-enter.reveal-active > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger: each child animates with a progressive delay */
+.reveal-enter > *:nth-child(1) { transition-delay: 0ms; }
+.reveal-enter > *:nth-child(2) { transition-delay: 80ms; }
+.reveal-enter > *:nth-child(3) { transition-delay: 160ms; }
+.reveal-enter > *:nth-child(4) { transition-delay: 240ms; }
+.reveal-enter > *:nth-child(5) { transition-delay: 320ms; }
+.reveal-enter > *:nth-child(6) { transition-delay: 400ms; }
+.reveal-enter > *:nth-child(7) { transition-delay: 480ms; }
+.reveal-enter > *:nth-child(8) { transition-delay: 560ms; }
+.reveal-enter > *:nth-child(9) { transition-delay: 640ms; }
+.reveal-enter > *:nth-child(10) { transition-delay: 720ms; }
+
+/* Accessibility: no animation when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-enter > * {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

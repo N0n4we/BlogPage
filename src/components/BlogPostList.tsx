@@ -1,4 +1,5 @@
 import { useBlogPosts } from '../hooks/useBlogPosts';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 import BlogPostComponent from './BlogPost';
 
 interface BlogPostListProps {
@@ -8,6 +9,7 @@ interface BlogPostListProps {
 
 export default function BlogPostList({ expandedPostId, onPostToggle }: BlogPostListProps) {
   const { posts, loading, error } = useBlogPosts();
+  const { ref, isRevealed } = useScrollReveal<HTMLElement>({ threshold: 0.1 });
 
   if (loading) {
     return (
@@ -48,7 +50,7 @@ export default function BlogPostList({ expandedPostId, onPostToggle }: BlogPostL
   }
 
   return (
-    <section className="blog-posts">
+    <section className={`blog-posts reveal-enter${isRevealed ? ' reveal-active' : ''}`} ref={ref}>
       <div className="container">
         {posts.map(post => (
           <BlogPostComponent
