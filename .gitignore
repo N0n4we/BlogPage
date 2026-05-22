@@ -2,6 +2,7 @@
 *.m4a
 *.jpg
 deploy.sh
+.pi/
 
 # Dependencies
 node_modules

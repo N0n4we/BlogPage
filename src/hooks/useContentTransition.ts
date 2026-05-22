@@ -4,13 +4,23 @@ import { useRef, useCallback } from 'react';
  * 管理博文正文区域的展开/折叠动画。
  *
  * 用法：
- *   const { expand, collapse, containerRef } = useContentTransition();
+ *   const { expand, collapse, syncHeight, containerRef } = useContentTransition();
  *   // 将 containerRef 挂到 .post-full-content 上
  *   // 在 isExpanded 变化时调用 expand() / collapse()
+ *   // syncHeight 用于 window resize 时重新测量 maxHeight
  */
 export function useContentTransition() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const onEndRef = useRef<((e: TransitionEvent) => void) | null>(null);
+
+  /** Re-measure maxHeight to fit current content — call on window resize. */
+  const syncHeight = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (getComputedStyle(el).maxHeight !== 'none') {
+      el.style.maxHeight = el.scrollHeight + 'px';
+    }
+  }, []);
 
   const expand = useCallback(() => {
     const el = containerRef.current;
@@ -60,5 +70,5 @@ export function useContentTransition() {
     el.classList.remove('expanded');
   }, []);
 
-  return { containerRef, expand, collapse };
+  return { containerRef, expand, collapse, syncHeight };
 }
