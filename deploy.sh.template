@@ -1,8 +1,52 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
+SERVER="root@xxx.xxx.xxx.xxx"   # ← replace with your server IP
+WEBROOT="/var/www/n0n4w3.cn"
+SERVER_DIR="/var/www/server"
+
+echo "=== Build ==="
 npm run build
 
-rsync -avz --delete "$(dirname $0)/dist/" root@xxx.xxx.xxx.xxx:/var/www/n0n4w3.cn
+echo "=== Rsync dist → $SERVER:$WEBROOT ==="
+rsync -avz --delete "$(dirname $0)/dist/" "$SERVER:$WEBROOT"
 
-# Restart health check server (PM2)
-ssh root@xxx.xxx.xxx.xxx "pm2 restart blog-health || pm2 start /var/www/n0n4w3.cn/../server/index.js --name blog-health"
+echo "=== Deploy nginx config ==="
+scp nginx.conf "$SERVER:/etc/nginx/sites-enabled/n0n4w3.cn"
+ssh "$SERVER" "nginx -t && systemctl reload nginx"
+
+echo "=== Deploy health check server ==="
+ssh "$SERVER" "mkdir -p $SERVER_DIR"
+scp server/index.js "$SERVER:$SERVER_DIR/index.js"
+ssh "$SERVER" "echo '{\"type\":\"module\"}' > $SERVER_DIR/package.json"
+
+# Deploy systemd service unit (always overwrite so config changes propagate)
+ssh "$SERVER" "
+cat > /etc/systemd/system/blog-health.service << 'UNIT'
+[Unit]
+Description=Blog health check API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${SERVER_DIR}
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=5
+Environment=PORT=3001
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable blog-health
+systemctl restart blog-health
+"
+
+echo "=== Health check ==="
+sleep 1
+curl -sf https://n0n4w3.cn/api/health && echo ""
+
+echo "=== Done ==="

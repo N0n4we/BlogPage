@@ -7,12 +7,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
 const startTime = Date.now();
 
-/** Resolve manifest path: env override > dist/ (build) > public/ (dev) */
+/** Resolve manifest path: env override > /var/www/n0n4w3.cn (prod) > dist/ (build) > public/ (dev) */
 function resolveManifestPath() {
   if (process.env.MANIFEST_PATH) return process.env.MANIFEST_PATH;
-  const distPath = path.resolve(__dirname, '../dist/blogs/manifest.json');
-  const publicPath = path.resolve(__dirname, '../public/blogs/manifest.json');
-  return fs.existsSync(distPath) ? distPath : publicPath;
+  const paths = [
+    '/var/www/n0n4w3.cn/blogs/manifest.json',           // prod rsync target
+    path.resolve(__dirname, '../dist/blogs/manifest.json'),   // build output
+    path.resolve(__dirname, '../public/blogs/manifest.json'), // dev
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return paths[1]; // default to dist path for error message
 }
 
 const MANIFEST_PATH = resolveManifestPath();
