@@ -970,16 +970,99 @@ pre code,
 }
 
 /* ---------- Glitch Effect ---------- */
+
+/* Blackout spans: invisible text chunks that blend with background */
 .glitch-blackout {
   display: inline-block;
   background: var(--post-background);
   color: transparent;
 }
 
+/* ---- Multi-layer glitch group wrapper ---- */
+.glitch-chars-group {
+  display: inline-block;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Noise/grain texture overlay on the group wrapper.
+   Uses SVG feTurbulence for analog surface detail that
+   interacts with the CRT scanline overlay to produce moiré depth. */
+.glitch-chars-group::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: overlay;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
+}
+
+/* ---- Front layer: strongest aberration + floating shadow ---- */
 .glitch-chars {
   display: inline-block;
   color: var(--warning-color);
+  /* RGB chromatic aberration: cyan left fringe + magenta right fringe.
+     Classic analog video color-fringe that reads as light refracting
+     through depth layers. Strongest on the front layer. */
+  text-shadow:
+    -2px 0 2px rgba(0, 255, 255, 0.55),
+    2px 0 2px rgba(255, 0, 255, 0.55),
+    0 0 1px rgba(0, 255, 255, 0.25),
+    0 0 1px rgba(255, 0, 255, 0.25);
+  /* Directional drop-shadow: light source from upper-left,
+     shadow falls down-right, creating "floating above surface" illusion */
+  filter: drop-shadow(3px 5px 3px rgba(0, 0, 0, 0.6));
+  /* Scanline micro-pattern at 3px — different frequency from CRT's 4px
+     overlay, producing moiré depth through interference */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 1.5px,
+      rgba(0, 0, 0, 0.04) 1.5px,
+      rgba(0, 0, 0, 0.04) 3px
+    );
   animation: glitch-jitter 0.06s steps(3, jump-start) infinite;
+}
+
+/* ---- Mid layer: softer aberration, lighter jitter ---- */
+.glitch-chars-mid {
+  display: inline-block;
+  color: var(--warning-color);
+  text-shadow:
+    -1.2px 0 1.2px rgba(0, 255, 255, 0.25),
+    1.2px 0 1.2px rgba(255, 0, 255, 0.25);
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 1.5px,
+      rgba(0, 0, 0, 0.02) 1.5px,
+      rgba(0, 0, 0, 0.02) 3px
+    );
+  animation: glitch-jitter-mid 0.09s steps(3, jump-start) infinite;
+}
+
+/* ---- Back layer: faintest aberration, slowest jitter ---- */
+.glitch-chars-back {
+  display: inline-block;
+  color: var(--warning-color);
+  text-shadow:
+    -0.8px 0 0.8px rgba(0, 255, 255, 0.12),
+    0.8px 0 0.8px rgba(255, 0, 255, 0.12);
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 1.5px,
+      rgba(0, 0, 0, 0.01) 1.5px,
+      rgba(0, 0, 0, 0.01) 3px
+    );
+  animation: glitch-jitter-back 0.14s steps(3, jump-start) infinite;
 }
 
 /* ---------- CRT Overlay (Scanlines + Film Grain) ---------- */
@@ -1026,10 +1109,25 @@ body.crt-enabled::after {
   animation: crt-grain var(--crt-grain-speed, 0.3s) steps(6) infinite;
 }
 
-/* Respect reduced-motion preference: disable grain animation */
+/* Respect reduced-motion preference: disable grain + glitch animations */
 @media (prefers-reduced-motion: reduce) {
   body.crt-enabled::after {
     animation: none;
+  }
+
+  .glitch-chars,
+  .glitch-chars-mid,
+  .glitch-chars-back {
+    animation: none !important;
+    /* Flatten depth effects: remove drop-shadow and chromatic aberration
+       so text remains legible without motion cues */
+    filter: none !important;
+    text-shadow: none !important;
+    background-image: none !important;
+  }
+
+  .glitch-chars-group::after {
+    display: none;
   }
 }
 
@@ -1048,21 +1146,34 @@ body.crt-enabled::after {
   will-change: transform;
 }
 
-/* ---------- Glitch Effect ---------- */
+/* ---------- Glitch Jitter Animations ---------- */
 
+/* Front layer: fast, tight jitter with largest displacement */
 @keyframes glitch-jitter {
-  0% {
-    transform: translate(0, 0);
-  }
-  33% {
-    transform: translate(1px, -0.5px);
-  }
-  66% {
-    transform: translate(-0.5px, 1px);
-  }
-  100% {
-    transform: translate(0, 0);
-  }
+  0%   { transform: translate(0, 0); }
+  33%  { transform: translate(1px, -0.5px); }
+  66%  { transform: translate(-0.5px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Mid layer: slower jitter with medium displacement */
+@keyframes glitch-jitter-mid {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-0.8px, 0.6px); }
+  50%  { transform: translate(0.4px, -0.5px); }
+  75%  { transform: translate(-0.5px, -0.4px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Back layer: slowest jitter with smallest displacement,
+   different timing creates independent parallax feel */
+@keyframes glitch-jitter-back {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(0.7px, -0.4px); }
+  40%  { transform: translate(-0.4px, 0.5px); }
+  60%  { transform: translate(0.3px, 0.3px); }
+  80%  { transform: translate(-0.6px, -0.3px); }
+  100% { transform: translate(0, 0); }
 }
 
 /* ---------- Audio Visualizer (PRD-004) ---------- */
