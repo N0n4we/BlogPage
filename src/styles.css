@@ -1189,3 +1189,37 @@ body.crt-enabled::after {
     transform: none !important;
   }
 }
+
+/* ---------- Ambient Dynamic Glow (PRD-006) ---------- */
+
+#ambient-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(
+      circle at var(--glow-x, 50%) var(--glow-y, 50%),
+      rgba(215, 153, 33, 0.08) 0%,      /* Gruvbox #d79921 bright_yellow */
+      rgba(215, 153, 33, 0.04) 25%,
+      rgba(181, 118, 20, 0.05) 50%,      /* Gruvbox #b57614 neutral_yellow */
+      transparent 70%
+    );
+  will-change: background;
+  min-width: 100vw;
+  min-height: 100vh;
+}
+
+/* Disable glow on touch devices */
+@media (pointer: coarse) {
+  #ambient-glow {
+    opacity: 0 !important;
+  }
+}
+
+/* Disable glow for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  #ambient-glow {
+    opacity: 0;
+  }
+}
