@@ -98,6 +98,13 @@ export function applyBlackout(
 
   const span = document.createElement('span');
   span.className = 'glitch-blackout';
+  // Depth: scale down + translateZ backward.
+  // translateZ is a no-op in flat contexts (content area), works in 3D (title).
+  const recess = 4 + Math.random() * 8;              // 4–12
+  const shrink = (1 - recess * 0.025).toFixed(3);     // 0.90–0.70
+  const depth = (-recess * 6).toFixed(0);              // −24 to −72 px
+  span.style.transform = `scale(${shrink}) translateZ(${depth}px)`;
+  span.style.transformOrigin = 'center';
   span.textContent = middle;
   fragment.appendChild(span);
 
@@ -108,6 +115,7 @@ export function applyBlackout(
 // Splits textNode at [start, start+length), replaces the middle with
 // random glitch characters in <span class="glitch-chars">,
 // and replaces the original node.
+// Glitch chars get a subtle drop-shadow + scale to float above the paper plane.
 export function applyGlitchChars(
   textNode: Text,
   start: number,
@@ -131,6 +139,15 @@ export function applyGlitchChars(
 
   const span = document.createElement('span');
   span.className = 'glitch-chars';
+  // Depth: scale + translateZ + glow halo (reads as "above the paper").
+  const elevation = 5 + Math.random() * 15;          // 5–20
+  const grow = (1 + elevation * 0.025).toFixed(3);    // 1.13–1.50
+  const depth = (elevation * 2.5).toFixed(0);          // 13–50 px
+  const glowSize = (elevation * 0.35).toFixed(1);      // 1.8–7.0px
+  const glowAlpha = (0.3 + elevation * 0.02).toFixed(2); // 0.4–0.7
+  span.style.transform = `scale(${grow}) translateZ(${depth}px)`;
+  span.style.transformOrigin = 'center';
+  span.style.textShadow = `0 0 ${glowSize}px rgba(251,73,52,${glowAlpha})`;
   span.textContent = glitched;
   fragment.appendChild(span);
 

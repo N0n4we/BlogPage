@@ -971,11 +971,13 @@ pre code,
 
 /* ---------- Glitch Effect ---------- */
 .glitch-blackout {
+  display: inline-block;
   background: var(--post-background);
   color: transparent;
 }
 
 .glitch-chars {
+  display: inline-block;
   color: var(--warning-color);
   animation: glitch-jitter 0.06s steps(3, jump-start) infinite;
 }
