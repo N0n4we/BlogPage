@@ -326,6 +326,14 @@ body {
   transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
 }
 
+/* Extend 3D context to all text elements inside the content wrapper,
+   so glitch layer translateZ values create real depth (not just the
+   scale/opacity/XY fallback). Without this, <p>, <h3>, <li> etc. break
+   the preserve-3d chain and translateZ degrades to z-ordering only. */
+.post-content-wrapper * {
+  transform-style: preserve-3d;
+}
+
 /* 展开的博客全文样式 */
 .post-full-content {
   max-height: 0;
