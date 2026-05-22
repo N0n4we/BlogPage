@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import APlayer from 'aplayer';
 import AudioVisualizer from './AudioVisualizer';
-
-
 
 interface Song {
   name: string;
@@ -32,10 +30,13 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
   const [visHeight, setVisHeight] = useState(160);
   const initialGapRef = useRef(0);
 
-  /* ---------- Scroll‑driven visualizer: fill gap → shrink to 160px ---------- */
-  const calcOffset = useCallback(() => {
+  /* ---------- Visualizer height: derived from travelDist (no own scroll listener) ----------
+   * useScrollStage tracks scroll position; we react to travelDist changes to
+   * compute visHeight = max(160, initialGap - scrollY). */
+  useEffect(() => {
     const postEl = musicPostRef.current;
     if (!postEl) return;
+
     const playerBottom = postEl.getBoundingClientRect().bottom;
     const viewH = window.innerHeight;
     const gap = viewH - playerBottom;
@@ -46,26 +47,16 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
     const initialGap = initialGapRef.current || gap;
 
     const h = Math.max(160, initialGap - window.scrollY);
-
     setVisHeight(Math.round(h));
-    if (!visReady) setVisReady(true);
+    setVisReady(true);
+  }, [travelDist]);
 
-    // Stop when first post hits viewport top or height reaches 160
-    if (h <= 160 || (travelDist > 0 && window.scrollY >= travelDist)) {
-      setVisHeight(160);
-      window.removeEventListener('scroll', calcOffset);
-    }
-  }, [visReady]);
-
+  // Invalidate initialGap on resize so it's recalculated on next travelDist change
   useEffect(() => {
-    calcOffset();
-    window.addEventListener('scroll', calcOffset, { passive: true } as AddEventListenerOptions);
-    window.addEventListener('resize', calcOffset);
-    return () => {
-      window.removeEventListener('scroll', calcOffset);
-      window.removeEventListener('resize', calcOffset);
-    };
-  }, [calcOffset]);
+    const handleResize = () => { initialGapRef.current = 0; };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -81,9 +72,6 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
     });
 
     playerRef.current = ap;
-
-    // Re-measure visualizer height after APlayer renders
-    requestAnimationFrame(() => calcOffset());
 
     // Expose the underlying <audio> element for the visualizer
     const audio = (ap as unknown as { audio: HTMLAudioElement }).audio;
