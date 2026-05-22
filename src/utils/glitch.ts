@@ -12,6 +12,15 @@ export function getRandomGlitchChar(): string {
   return GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
 }
 
+/** Generate a string of `length` independent random glitch characters. */
+export function getRandomGlitchString(length: number): string {
+  let s = '';
+  for (let i = 0; i < length; i++) {
+    s += getRandomGlitchChar();
+  }
+  return s;
+}
+
 // Walk all #text nodes under root, skipping those inside <pre>, <code>,
 // or already inside a glitch span (so glitches don't nest on each other).
 // Collects nodes first (TreeWalker is live and would skip nodes during mutation),
@@ -37,7 +46,9 @@ export function walkTextNodes(
         while (p && p !== root) {
           if (
             p.classList.contains('glitch-blackout') ||
-            p.classList.contains('glitch-chars')
+            p.classList.contains('glitch-chars') ||
+            p.classList.contains('glitch-group') ||
+            p.classList.contains('glitch-layer')
           ) {
             return NodeFilter.FILTER_SKIP;
           }
@@ -64,12 +75,21 @@ export function removeSomeGlitchSpans(
   root: HTMLElement,
   removeProbability: number
 ): number {
-  const spans = root.querySelectorAll('.glitch-blackout, .glitch-chars');
+  const spans = root.querySelectorAll('.glitch-blackout, .glitch-group');
   let removed = 0;
   for (let i = spans.length - 1; i >= 0; i--) {
     if (Math.random() >= removeProbability) continue;
     const span = spans[i];
-    const text = span.textContent || '';
+    // For groups, extract text from one layer to avoid 3× concatenation.
+    const text =
+      span.classList.contains('glitch-group')
+        ? (span.querySelector('.glitch-layer-mid') as HTMLElement | null)
+            ?.textContent ||
+          (span.querySelector('.glitch-layer') as HTMLElement | null)
+            ?.textContent ||
+          span.textContent ||
+          ''
+        : span.textContent || '';
     span.replaceWith(document.createTextNode(text));
     removed++;
   }
@@ -79,6 +99,8 @@ export function removeSomeGlitchSpans(
 
 // Splits textNode at [start, start+length), wraps the middle in
 // <span class="glitch-blackout">, and replaces the original node.
+// Uses independent scale & translate CSS properties to coexist with any
+// CSS animation that sets `transform` (e.g. glitch-jitter).
 export function applyBlackout(
   textNode: Text,
   start: number,
@@ -103,7 +125,9 @@ export function applyBlackout(
   const recess = 4 + Math.random() * 8;              // 4–12
   const shrink = (1 - recess * 0.025).toFixed(3);     // 0.90–0.70
   const depth = (-recess * 6).toFixed(0);              // −24 to −72 px
-  span.style.transform = `scale(${shrink}) translateZ(${depth}px)`;
+  // Independent properties — won't be overridden by CSS `transform` animations.
+  span.style.scale = shrink;
+  span.style.translate = `0 0 ${depth}px`;
   span.style.transformOrigin = 'center';
   span.textContent = middle;
   fragment.appendChild(span);
@@ -112,11 +136,72 @@ export function applyBlackout(
   parent.replaceChild(fragment, textNode);
 }
 
-// Splits textNode at [start, start+length), replaces the middle with
-// random glitch characters in <span class="glitch-chars">,
-// and replaces the original node.
-// Glitch chars get a subtle drop-shadow + scale to float above the paper plane.
-export function applyGlitchChars(
+/**
+ * Layer volume preset for multi-layer glitch chars.
+ * Each value is randomised within its range at call time.
+ */
+interface LayerPreset {
+  cls: string;
+  depthMin: number;
+  depthMax: number;
+  scaleMin: number;
+  scaleMax: number;
+  opacityMin: number;
+  opacityMax: number;
+  offsetXRange: number;
+  offsetYRange: number;
+}
+
+const LAYER_PRESETS: LayerPreset[] = [
+  {
+    cls: 'glitch-layer-back',
+    depthMin: -80,
+    depthMax: -40,
+    scaleMin: 0.7,
+    scaleMax: 0.85,
+    opacityMin: 0.25,
+    opacityMax: 0.45,
+    offsetXRange: 3,
+    offsetYRange: 2,
+  },
+  {
+    cls: 'glitch-layer-mid',
+    depthMin: -30,
+    depthMax: -10,
+    scaleMin: 0.9,
+    scaleMax: 1.0,
+    opacityMin: 0.5,
+    opacityMax: 0.7,
+    offsetXRange: 2,
+    offsetYRange: 1.5,
+  },
+  {
+    cls: 'glitch-layer-front',
+    depthMin: 15,
+    depthMax: 45,
+    scaleMin: 1.05,
+    scaleMax: 1.2,
+    opacityMin: 0.8,
+    opacityMax: 1.0,
+    offsetXRange: 1.5,
+    offsetYRange: 1,
+  },
+];
+
+function randBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function randBetweenInt(min: number, max: number): number {
+  return Math.floor(randBetween(min, max + 1));
+}
+
+// Splits textNode at [start, start+length), replaces the middle with a
+// 3-layer volumetric glitch group: back, mid, and front layers each at
+// independent Z depths, scale, opacity, displacement, and random chars.
+// Uses independent CSS `scale` + `translate` properties so the per-layer
+// `glitch-jitter` animation (which targets `transform`) doesn't override depth.
+export function applyGlitchCharsGroup(
   textNode: Text,
   start: number,
   length: number
@@ -127,42 +212,69 @@ export function applyGlitchChars(
 
   const end = Math.min(start + length, text.length);
   const before = text.slice(0, start);
-  const middle = text.slice(start, end);
+  const charCount = end - start;
   const after = text.slice(end);
-
-  const glitched = Array.from(middle)
-    .map(() => getRandomGlitchChar())
-    .join('');
 
   const fragment = document.createDocumentFragment();
   if (before) fragment.appendChild(document.createTextNode(before));
 
-  const span = document.createElement('span');
-  span.className = 'glitch-chars';
-  // Depth: scale + translateZ + glow halo (reads as "above the paper").
-  const elevation = 5 + Math.random() * 15;          // 5–20
-  const grow = (1 + elevation * 0.025).toFixed(3);    // 1.13–1.50
-  const depth = (elevation * 2.5).toFixed(0);          // 13–50 px
-  const glowSize = (elevation * 0.35).toFixed(1);      // 1.8–7.0px
-  const glowAlpha = (0.3 + elevation * 0.02).toFixed(2); // 0.4–0.7
-  span.style.transform = `scale(${grow}) translateZ(${depth}px)`;
-  span.style.transformOrigin = 'center';
-  span.style.textShadow = `0 0 ${glowSize}px rgba(251,73,52,${glowAlpha})`;
-  span.textContent = glitched;
-  fragment.appendChild(span);
+  // Outer group — inline-grid so all layers overlap in the same 2D cell.
+  const group = document.createElement('span');
+  group.className = 'glitch-group';
+  group.style.display = 'inline-grid';
 
+  for (const preset of LAYER_PRESETS) {
+    const layer = document.createElement('span');
+    layer.className = `glitch-layer ${preset.cls}`;
+
+    const depth = randBetweenInt(preset.depthMin, preset.depthMax);
+    const scale = randBetween(preset.scaleMin, preset.scaleMax).toFixed(3);
+    const opacity = randBetween(preset.opacityMin, preset.opacityMax).toFixed(2);
+    const offX = (
+      (Math.random() - 0.5) * 2 * preset.offsetXRange
+    ).toFixed(1);
+    const offY = (
+      (Math.random() - 0.5) * 2 * preset.offsetYRange
+    ).toFixed(1);
+
+    // Independent CSS properties avoid being clobbered by `transform` in
+    // the glitch-jitter CSS animation.
+    layer.style.scale = scale;
+    layer.style.translate = `${offX}px ${offY}px ${depth}px`;
+    layer.style.opacity = opacity;
+    layer.style.gridRow = '1';
+    layer.style.gridColumn = '1';
+
+    // Each layer gets independent random glitch characters.
+    layer.textContent = getRandomGlitchString(charCount);
+    group.appendChild(layer);
+  }
+
+  fragment.appendChild(group);
   if (after) fragment.appendChild(document.createTextNode(after));
   parent.replaceChild(fragment, textNode);
 }
 
-// Undo all glitch modifications: replace .glitch-blackout and .glitch-chars
-// spans with their text content, then normalize to merge adjacent text nodes.
+/** @deprecated Replaced by applyGlitchCharsGroup for multi-layer depth. */
+export const applyGlitchChars = applyGlitchCharsGroup;
+
+// Undo all glitch modifications: replace .glitch-blackout and .glitch-group
+// elements with their text content, then normalize to merge adjacent text nodes.
+// For groups, text is extracted from a single layer to avoid 3× concatenation.
 export function restoreGlitchSpans(root: HTMLElement): void {
-  const spans = root.querySelectorAll('.glitch-blackout, .glitch-chars');
+  const spans = root.querySelectorAll('.glitch-blackout, .glitch-group');
   // Iterate in reverse to handle potential nesting safely
   for (let i = spans.length - 1; i >= 0; i--) {
     const span = spans[i];
-    const text = span.textContent || '';
+    const text =
+      span.classList.contains('glitch-group')
+        ? (span.querySelector('.glitch-layer-mid') as HTMLElement | null)
+            ?.textContent ||
+          (span.querySelector('.glitch-layer') as HTMLElement | null)
+            ?.textContent ||
+          span.textContent ||
+          ''
+        : span.textContent || '';
     span.replaceWith(document.createTextNode(text));
   }
   root.normalize();

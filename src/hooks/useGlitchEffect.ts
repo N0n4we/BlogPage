@@ -2,7 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import {
   walkTextNodes,
   applyBlackout,
-  applyGlitchChars,
+  applyGlitchCharsGroup,
   restoreGlitchSpans,
   removeSomeGlitchSpans,
 } from '../utils/glitch';
@@ -95,7 +95,7 @@ export function useGlitchEffect(
         if (Math.random() < config.blackoutRatio) {
           applyBlackout(textNode, start, glitchLen);
         } else {
-          applyGlitchChars(textNode, start, glitchLen);
+          applyGlitchCharsGroup(textNode, start, glitchLen);
         }
       });
 
