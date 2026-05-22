@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import MusicPlayer from './components/MusicPlayer';
 import BlogPostList from './components/BlogPostList';
+import CustomCursor from './components/CustomCursor';
 import { usePostNavigation } from './hooks/usePostNavigation';
 
 function BlogPage() {
@@ -32,6 +33,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <CustomCursor />
       <Routes>
         <Route path="/" element={<BlogPage />} />
         <Route path="/:dateId" element={<BlogPage />} />
