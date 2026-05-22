@@ -92,6 +92,13 @@
   /* 警告/错误颜色 */
   --warning-color: #fb4934;
   /* bright_red */
+
+  /* CRT overlay */
+  --crt-scanline-opacity: 0.08;
+  --crt-scanline-spacing: 4px;
+  --crt-grain-opacity: 0.04;
+  --crt-grain-speed: 0.3s;
+  --crt-z-index: 9998;
 }
 
 html,
@@ -966,6 +973,59 @@ pre code,
   color: var(--warning-color);
   animation: glitch-jitter 0.06s steps(3, jump-start) infinite;
 }
+
+/* ---------- CRT Overlay (Scanlines + Film Grain) ---------- */
+
+/* Grain animation: discrete steps for static-like flicker */
+@keyframes crt-grain {
+  0%, 100% { background-position: 0 0; }
+  20%      { background-position: -20px -10px; }
+  40%      { background-position: 15px -25px; }
+  60%      { background-position: -10px 20px; }
+  80%      { background-position: 25px 15px; }
+}
+
+/* Default: overlay off */
+body::after {
+  content: none;
+}
+
+/* Enabled: CRT overlay with scanlines + animated film grain */
+body.crt-enabled::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--crt-z-index, 9998);
+  will-change: background-position;
+  transform: translateZ(0);
+
+  /* Scanlines: horizontal repeating gradient */
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, var(--crt-scanline-opacity, 0.08)) 2px,
+      rgba(0, 0, 0, var(--crt-scanline-opacity, 0.08)) 4px
+    ) repeat;
+
+  /* Film grain: SVG feTurbulence noise texture */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-blend-mode: normal;
+  background-repeat: repeat, repeat;
+  background-size: auto auto, 200px 200px;
+  animation: crt-grain var(--crt-grain-speed, 0.3s) steps(6) infinite;
+}
+
+/* Respect reduced-motion preference: disable grain animation */
+@media (prefers-reduced-motion: reduce) {
+  body.crt-enabled::after {
+    animation: none;
+  }
+}
+
+/* ---------- Glitch Effect ---------- */
 
 @keyframes glitch-jitter {
   0% {
