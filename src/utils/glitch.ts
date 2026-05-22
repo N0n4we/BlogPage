@@ -47,8 +47,9 @@ export function walkTextNodes(
           if (
             p.classList.contains('glitch-blackout') ||
             p.classList.contains('glitch-chars') ||
-            p.classList.contains('glitch-group') ||
-            p.classList.contains('glitch-layer')
+            p.classList.contains('glitch-chars-mid') ||
+            p.classList.contains('glitch-chars-back') ||
+            p.classList.contains('glitch-chars-group')
           ) {
             return NodeFilter.FILTER_SKIP;
           }
@@ -75,17 +76,17 @@ export function removeSomeGlitchSpans(
   root: HTMLElement,
   removeProbability: number
 ): number {
-  const spans = root.querySelectorAll('.glitch-blackout, .glitch-group');
+  const spans = root.querySelectorAll('.glitch-blackout, .glitch-chars-group');
   let removed = 0;
   for (let i = spans.length - 1; i >= 0; i--) {
     if (Math.random() >= removeProbability) continue;
     const span = spans[i];
     // For groups, extract text from one layer to avoid 3× concatenation.
     const text =
-      span.classList.contains('glitch-group')
-        ? (span.querySelector('.glitch-layer-mid') as HTMLElement | null)
+      span.classList.contains('glitch-chars-group')
+        ? (span.querySelector('.glitch-chars-mid') as HTMLElement | null)
             ?.textContent ||
-          (span.querySelector('.glitch-layer') as HTMLElement | null)
+          (span.querySelector('.glitch-chars') as HTMLElement | null)
             ?.textContent ||
           span.textContent ||
           ''
@@ -154,7 +155,7 @@ interface LayerPreset {
 
 const LAYER_PRESETS: LayerPreset[] = [
   {
-    cls: 'glitch-layer-back',
+    cls: 'glitch-chars-back',
     depthMin: -80,
     depthMax: -40,
     scaleMin: 0.7,
@@ -165,7 +166,7 @@ const LAYER_PRESETS: LayerPreset[] = [
     offsetYRange: 2,
   },
   {
-    cls: 'glitch-layer-mid',
+    cls: 'glitch-chars-mid',
     depthMin: -30,
     depthMax: -10,
     scaleMin: 0.9,
@@ -176,7 +177,7 @@ const LAYER_PRESETS: LayerPreset[] = [
     offsetYRange: 1.5,
   },
   {
-    cls: 'glitch-layer-front',
+    cls: 'glitch-chars',
     depthMin: 15,
     depthMax: 45,
     scaleMin: 1.05,
@@ -220,12 +221,12 @@ export function applyGlitchCharsGroup(
 
   // Outer group — inline-grid so all layers overlap in the same 2D cell.
   const group = document.createElement('span');
-  group.className = 'glitch-group';
+  group.className = 'glitch-chars-group';
   group.style.display = 'inline-grid';
 
   for (const preset of LAYER_PRESETS) {
     const layer = document.createElement('span');
-    layer.className = `glitch-layer ${preset.cls}`;
+    layer.className = preset.cls;
 
     const depth = randBetweenInt(preset.depthMin, preset.depthMax);
     const scale = randBetween(preset.scaleMin, preset.scaleMax).toFixed(3);
@@ -258,19 +259,19 @@ export function applyGlitchCharsGroup(
 /** @deprecated Replaced by applyGlitchCharsGroup for multi-layer depth. */
 export const applyGlitchChars = applyGlitchCharsGroup;
 
-// Undo all glitch modifications: replace .glitch-blackout and .glitch-group
+// Undo all glitch modifications: replace .glitch-blackout and .glitch-chars-group
 // elements with their text content, then normalize to merge adjacent text nodes.
 // For groups, text is extracted from a single layer to avoid 3× concatenation.
 export function restoreGlitchSpans(root: HTMLElement): void {
-  const spans = root.querySelectorAll('.glitch-blackout, .glitch-group');
+  const spans = root.querySelectorAll('.glitch-blackout, .glitch-chars-group');
   // Iterate in reverse to handle potential nesting safely
   for (let i = spans.length - 1; i >= 0; i--) {
     const span = spans[i];
     const text =
-      span.classList.contains('glitch-group')
-        ? (span.querySelector('.glitch-layer-mid') as HTMLElement | null)
+      span.classList.contains('glitch-chars-group')
+        ? (span.querySelector('.glitch-chars-mid') as HTMLElement | null)
             ?.textContent ||
-          (span.querySelector('.glitch-layer') as HTMLElement | null)
+          (span.querySelector('.glitch-chars') as HTMLElement | null)
             ?.textContent ||
           span.textContent ||
           ''
