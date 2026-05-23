@@ -1039,15 +1039,14 @@ pre code,
 .glitch-chars {
   display: inline-block;
   color: var(--warning-color);
-  /* RGB chromatic aberration: wider offsets match the deeper forward
-     Z distance (+60~+120), creating strong color-fringe separation.
-     No drop-shadow — depth comes purely from chromatic displacement
-     and perspective-driven translateZ. */
+  /* RGB chromatic aberration: aggressive offsets match the extreme
+     forward Z distance (+130~+280), creating vivid color-fringe
+     separation. No drop-shadow — depth from chroma + perspective. */
   text-shadow:
-    -3.5px 0 2px rgba(0, 255, 255, 0.60),
-    3.5px 0 2px rgba(255, 0, 255, 0.60),
-    -1.2px 0.6px 0.8px rgba(0, 255, 255, 0.30),
-    1.2px -0.6px 0.8px rgba(255, 0, 255, 0.30);
+    -5px 0 2.5px rgba(0, 255, 255, 0.65),
+    5px 0 2.5px rgba(255, 0, 255, 0.65),
+    -2px 1px 1.2px rgba(0, 255, 255, 0.35),
+    2px -1px 1.2px rgba(255, 0, 255, 0.35);
   /* Scanline micro-pattern at 3px — different frequency from CRT's 4px
      overlay, producing moiré depth through interference. */
   background-image:
@@ -1087,11 +1086,12 @@ pre code,
 .glitch-chars-back {
   display: inline-block;
   color: var(--warning-color);
-  /* Subtle color fringe — back layer is distant so aberration is faint.
-     Offset kept narrow to match the small perceived size at depth. */
+  /* Faintest color fringe — back layer is extremely distant so
+     aberration is barely perceptible, reinforcing depth through
+     absence of the strong fringe seen on the front layer. */
   text-shadow:
-    -0.5px 0 0.5px rgba(0, 255, 255, 0.18),
-    0.5px 0 0.5px rgba(255, 0, 255, 0.18);
+    -0.3px 0 0.3px rgba(0, 255, 255, 0.12),
+    0.3px 0 0.3px rgba(255, 0, 255, 0.12);
   /* Fainter scanline — distant objects receive less surface detail. */
   background-image:
     repeating-linear-gradient(
@@ -1103,7 +1103,7 @@ pre code,
     );
   transition: opacity 0.15s ease;
   /* Slowest jitter — distant motion parallax is less pronounced. */
-  animation: glitch-jitter-back 0.16s steps(3, jump-start) infinite;
+  animation: glitch-jitter-back 0.20s steps(3, jump-start) infinite;
 }
 
 /* ---------- CRT Overlay (Scanlines + Film Grain) ---------- */

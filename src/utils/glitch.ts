@@ -126,9 +126,9 @@ export function applyBlackout(
   // Depth: smaller scale reduction so translateZ carries more weight
   // through perspective. Combined with scanline texture (CSS) and
   // chromatic displacement from adjacent glitch chars for depth.
-  const recess = 3 + Math.random() * 12;             // 3–15
-  const shrink = (1 - recess * 0.015).toFixed(3);    // 0.955–0.775
-  const depth = (-recess * 12).toFixed(0);           // −36 to −180 px
+  const recess = 3 + Math.random() * 14;             // 3–17
+  const shrink = (1 - recess * 0.018).toFixed(3);    // 0.946–0.694
+  const depth = (-recess * 18).toFixed(0);           // −54 to −306 px
   // Independent properties — won't be overridden by CSS `transform` animations.
   span.style.scale = shrink;
   span.style.translate = `0 0 ${depth}px`;
@@ -158,44 +158,46 @@ interface LayerPreset {
 
 const LAYER_PRESETS: LayerPreset[] = [
   {
-    // Back layer — deepest recess, pushed far behind the text plane.
-    // Wider lateral spread compensates for the larger Z distance so
-    // parallax separation remains visible at subtle card tilts.
+    // Back layer — extreme recess, tiny scale, wide lateral spread
+    // for dramatic parallax at card tilt. Faintest opacity so the
+    // front/mid layers read as closer by contrast.
     cls: 'glitch-chars-back',
-    depthMin: -180,
-    depthMax: -100,
-    scaleMin: 0.55,
-    scaleMax: 0.78,
-    opacityMin: 0.22,
-    opacityMax: 0.40,
-    offsetXRange: 8.0,
-    offsetYRange: 5.0,
+    depthMin: -380,
+    depthMax: -220,
+    scaleMin: 0.40,
+    scaleMax: 0.65,
+    opacityMin: 0.18,
+    opacityMax: 0.35,
+    offsetXRange: 14.0,
+    offsetYRange: 9.0,
   },
   {
-    // Mid layer — near the text plane, scale straddles 1.0 so
-    // characters feel close-to-parity while still displaced.
+    // Mid layer — straddles the text plane, scale near 1.0.
+    // Moderate lateral spread so mid visibly separates from
+    // front and back in the parallax stack.
     cls: 'glitch-chars-mid',
-    depthMin: -45,
-    depthMax: -15,
-    scaleMin: 0.90,
-    scaleMax: 1.04,
-    opacityMin: 0.40,
-    opacityMax: 0.65,
-    offsetXRange: 4.5,
-    offsetYRange: 3.0,
+    depthMin: -65,
+    depthMax: -25,
+    scaleMin: 0.92,
+    scaleMax: 1.05,
+    opacityMin: 0.38,
+    opacityMax: 0.62,
+    offsetXRange: 6.0,
+    offsetYRange: 4.0,
   },
   {
-    // Front layer — pushed well forward of the text plane for dramatic
-    // depth gap. Scale kept tight to avoid cartoonish blow-up.
+    // Front layer — far forward, largest scale, brightest.
+    // Scale kept moderate to avoid cartoonish blow-up despite the
+    // aggressive translateZ. Thick chroma aberration (CSS) reinforces.
     cls: 'glitch-chars',
-    depthMin: 60,
-    depthMax: 120,
-    scaleMin: 1.04,
-    scaleMax: 1.10,
-    opacityMin: 0.90,
+    depthMin: 130,
+    depthMax: 280,
+    scaleMin: 1.06,
+    scaleMax: 1.14,
+    opacityMin: 0.92,
     opacityMax: 1.0,
-    offsetXRange: 1.5,
-    offsetYRange: 1.0,
+    offsetXRange: 2.0,
+    offsetYRange: 1.5,
   },
 ];
 
