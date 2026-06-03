@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 
-import Footer from './components/Footer';
 import MusicPlayer from './components/MusicPlayer';
 import BlogPostList from './components/BlogPostList';
 
@@ -26,7 +25,6 @@ function BlogPage() {
           revealProgress={revealProgress}
         />
       </main>
-      <Footer revealProgress={revealProgress} />
     </>
   );
 }
