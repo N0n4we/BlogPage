@@ -29,7 +29,7 @@ export function useContentPipeline(postFile: string | null): ContentPipelineResu
     setError(null);
     setLoading(true);
 
-    const url = `/blogs/${encodeURIComponent(postFile)}`;
+    const url = `${import.meta.env.BASE_URL}blogs/${encodeURIComponent(postFile)}`;
     fetch(url, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

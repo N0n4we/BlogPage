@@ -9,12 +9,21 @@ interface Song {
   cover: string;
 }
 
+const assetUrl = (path: string) =>
+  `${import.meta.env.BASE_URL}${path.split('/').map(encodeURIComponent).join('/')}`;
+
 const songs: Song[] = [
   {
-    name: 'item storage',
-    artist: 'slowly, slowly',
-    url: '/songs/slowly, slowly - item storage.mp3',
-    cover: '/songs/slowly, slowly - item storage.jpg',
+    name: 'MIA',
+    artist: 'raiwinnn',
+    url: assetUrl('songs/raiwinnn - MIA.mp3'),
+    cover: assetUrl('songs/raiwinnn - MIA.jpg'),
+  },
+  {
+    name: 'iN_mY_BED',
+    artist: 'vulx',
+    url: assetUrl('songs/vulx - iN_mY_BED.mp3'),
+    cover: assetUrl('songs/vulx - iN_mY_BED.jpg'),
   },
 ];
 

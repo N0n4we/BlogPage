@@ -6,7 +6,7 @@ WEBROOT="/var/www/n0n4w3.cn"
 SERVER_DIR="/var/www/server"
 
 echo "=== Build ==="
-npm run build
+pnpm run build
 
 echo "=== Rsync dist → $SERVER:$WEBROOT ==="
 rsync -avz --delete "$(dirname $0)/dist/" "$SERVER:$WEBROOT"

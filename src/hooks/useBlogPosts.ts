@@ -23,7 +23,7 @@ export function useBlogPosts(): UseBlogPostsResult {
     async function fetchBlogList() {
       try {
         // 尝试从 manifest.json 获取博客列表（开发环境和构建后都支持）
-        const response = await fetch('/blogs/manifest.json');
+        const response = await fetch(`${import.meta.env.BASE_URL}blogs/manifest.json`);
         if (response.ok) {
           const files: string[] = await response.json();
 

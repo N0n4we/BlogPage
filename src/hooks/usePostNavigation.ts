@@ -45,7 +45,7 @@ export function usePostNavigation(): PostNavigation {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
-      const match = path.match(/^\/(\d{8})$/);
+      const match = path.match(/\/(\d{8})$/);
       if (match) {
         setExpandedPostId(match[1]);
       } else {

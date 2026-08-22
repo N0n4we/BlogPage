@@ -6,6 +6,16 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// GitHub Pages serves project sites from /<repository>/.
+// Keep local development and user-site deployments at the root.
+const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? ''
+const base =
+  process.env.GITHUB_ACTIONS === 'true' &&
+  repositoryName !== '' &&
+  !repositoryName.endsWith('.github.io')
+    ? `/${repositoryName}/`
+    : '/'
+
 // Plugin to generate blog manifest
 function blogManifestPlugin(): Plugin {
   const blogsDir = path.resolve(__dirname, 'public/blogs')
@@ -48,6 +58,7 @@ function blogManifestPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base,
   plugins: [react(), blogManifestPlugin()],
   server: {
     proxy: {
