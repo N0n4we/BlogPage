@@ -32,7 +32,6 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
   const playerRef = useRef<APlayer | null>(null);
   const visWrapperRef = useRef<HTMLDivElement>(null);
   const musicPostRef = useRef<HTMLDivElement>(null);
-  const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [visReady, setVisReady] = useState(false);
@@ -75,7 +74,7 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
     const ap = new APlayer({
       container: containerRef.current,
       listFolded: true,
-      autoplay: true,
+      autoplay: false,
       theme: '#282828',
       audio: [randomSong]
     });
@@ -86,39 +85,32 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
     const audio = (ap as unknown as { audio: HTMLAudioElement }).audio;
     if (audio) setAudioElement(audio);
 
-    let autoplayAttempted = false;
-
-    ap.on('canplay', () => {
-      if (!autoplayAttempted) {
-        autoplayAttempted = true;
-        setTimeout(() => {
-          try {
-            ap.play();
-          } catch {
-            // 自动播放被浏览器阻止，启动重试
-            retryIntervalRef.current = setInterval(() => {
-              if (ap.paused) {
-                try { ap.play(); } catch { /* ignore */ }
-              }
-            }, 5000);
-          }
-        }, 3000);
-      }
-    });
+    // Browsers block audible autoplay until the first user interaction.
+    // Start playback on that first click/key press, then remove the listeners
+    // so later clicks can still pause or control the player normally.
+    let interactionHandled = false;
+    const removeInteractionListeners = () => {
+      window.removeEventListener('click', startAfterInteraction);
+      window.removeEventListener('keydown', startAfterInteraction);
+    };
+    const startAfterInteraction = () => {
+      if (interactionHandled) return;
+      interactionHandled = true;
+      // APlayer.play() handles the native play() promise internally and does
+      // not return it. Chaining .then() here therefore throws on interaction.
+      ap.play();
+    };
+    window.addEventListener('click', startAfterInteraction);
+    window.addEventListener('keydown', startAfterInteraction);
 
     ap.on('play', () => {
       setIsPlaying(true);
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current);
-        retryIntervalRef.current = null;
-      }
+      removeInteractionListeners();
     });
     ap.on('pause', () => setIsPlaying(false));
 
     return () => {
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current);
-      }
+      removeInteractionListeners();
       if (playerRef.current) {
         playerRef.current.destroy();
       }

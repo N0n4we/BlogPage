@@ -44,6 +44,12 @@ export default function AudioVisualizer({ audioElement, isPlaying, height }: Aud
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
+
+    // Chrome may create the context in a suspended state. Resume it when the
+    // user starts playback so the MediaElementAudioSource reaches the speakers.
+    if (isPlaying && audioContextRef.current?.state === 'suspended') {
+      void audioContextRef.current.resume().catch(() => {});
+    }
   }, [isPlaying]);
 
   /* ---------- AudioContext + stereo analyser setup ---------- */
@@ -61,6 +67,12 @@ export default function AudioVisualizer({ audioElement, isPlaying, height }: Aud
 
     const ctx = new AudioCtx();
     audioContextRef.current = ctx;
+    const resumeContext = () => {
+      if (ctx.state === 'suspended') {
+        void ctx.resume().catch(() => {});
+      }
+    };
+    audioElement.addEventListener('play', resumeContext);
 
     try {
       const source = ctx.createMediaElementSource(audioElement);
@@ -101,11 +113,13 @@ export default function AudioVisualizer({ audioElement, isPlaying, height }: Aud
     } catch (err) {
       console.warn('[AudioVisualizer] setup failed', err);
       setWebAudioState('failed');
+      audioElement.removeEventListener('play', resumeContext);
       ctx.close().catch(() => {});
       audioContextRef.current = null;
     }
 
     return () => {
+      audioElement.removeEventListener('play', resumeContext);
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = 0;

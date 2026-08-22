@@ -7,7 +7,9 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-B9MKPX717B');
+      // Page views are sent by the React router tracker so SPA navigation is
+      // recorded too, without sending a duplicate initial page view.
+      gtag('config', 'G-B9MKPX717B', { send_page_view: false });
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
