@@ -80,15 +80,18 @@
   --crt-z-index: 9998;
 
   /* Music rhythm bridge. Values are written by src/modules/musicRhythm.ts. */
-  --music-energy: 0;
+  --music-spectrum-pulse: 0;
   --music-bass: 0;
   --music-mid: 0;
   --music-high: 0;
   --music-pulse: 0;
   --music-chroma: 0;
-  --music-glitch-front-duration: 180ms;
-  --music-glitch-mid-duration: 240ms;
-  --music-glitch-back-duration: 390ms;
+  --music-glitch-front-duration: 340ms;
+  --music-glitch-mid-duration: 500ms;
+  --music-glitch-back-duration: 760ms;
+  --music-body-glitch-front-duration: 310ms;
+  --music-body-glitch-mid-duration: 460ms;
+  --music-body-glitch-back-duration: 700ms;
   --music-shift-xs: 0px;
   --music-shift-xs-neg: 0px;
   --music-shift-y-xs: 0px;
@@ -670,10 +673,9 @@ pre code,
 
 /* ---------- Glitch Effect ---------- */
 
-/* Blackout spans: "cut-out" recessed below the text surface.
-   Scanline texture + perspective recession create depth without
-   relying on shadow — pure geometry and surface detail. */
-.glitch-blackout {
+/* Blackout spans: cover the source glyphs with the post surface. */
+.glitch-blackout,
+.glitch-depth {
   display: inline-block;
   /* Fill: background color with subtle scanline overlay.
      Uses 2.5px scanline — different frequency from CRT (4px)
@@ -687,10 +689,30 @@ pre code,
       rgba(0, 0, 0, 0.035) 2.5px
     ),
     var(--post-background);
-  color: transparent;
+  background-color: var(--post-background);
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none !important;
   /* Smooth transition so blackout spans fade in/out naturally
      during glitch cycle rotation rather than blinking abruptly. */
   transition: opacity 0.12s ease;
+}
+
+/* Depth blackout adds the translateZ/scale values from glitch.ts. */
+.glitch-depth {
+  transform-style: preserve-3d;
+}
+
+/* Chromatic dispersion keeps the original glyphs readable while separating
+   cyan and red channels around the source text. */
+.glitch-dispersion {
+  display: inline-block;
+  color: inherit;
+  text-shadow:
+    var(--glitch-dispersion-offset-neg, -2px) 0 0 rgb(131 165 152 / 0.72),
+    var(--glitch-dispersion-offset, 2px) 0 0 rgb(251 73 52 / 0.72);
+  transition: text-shadow 0.16s ease;
 }
 
 /* ---- Multi-layer glitch group wrapper ---- */
@@ -859,6 +881,10 @@ body.crt-enabled::after {
     /* Keep chromatic aberration (text-shadow) as static depth cue. */
   }
 
+  .glitch-dispersion {
+    text-shadow: none;
+  }
+
   /* Hide animated noise overlay; static scanline pattern stays */
   .glitch-chars-group::after {
     display: none;
@@ -910,6 +936,57 @@ body.crt-enabled::after {
   100% { transform: translate(0, 0); }
 }
 
+/* Body text deliberately uses a harsher motion profile at musical peaks. */
+.music-glitch-target--body .glitch-chars {
+  animation-name: glitch-jitter-body-front;
+  animation-timing-function: steps(1, jump-start);
+}
+
+.music-glitch-target--body .glitch-chars-mid {
+  animation-name: glitch-jitter-body-mid;
+  animation-timing-function: steps(1, jump-start);
+}
+
+.music-glitch-target--body .glitch-chars-back {
+  animation-name: glitch-jitter-body-back;
+  animation-timing-function: steps(1, jump-start);
+}
+
+@keyframes glitch-jitter-body-front {
+  0%   { transform: translate(0, 0); }
+  10%  { transform: translate(4px, -2px); }
+  22%  { transform: translate(-5px, 3px); }
+  34%  { transform: translate(2px, -4px); }
+  47%  { transform: translate(-6px, 1px); }
+  60%  { transform: translate(5px, 4px); }
+  73%  { transform: translate(-3px, -4px); }
+  86%  { transform: translate(6px, -1px); }
+  94%  { transform: translate(-4px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes glitch-jitter-body-mid {
+  0%   { transform: translate(0, 0); }
+  14%  { transform: translate(-3px, 2px); }
+  28%  { transform: translate(4px, -3px); }
+  43%  { transform: translate(-4px, -2px); }
+  58%  { transform: translate(3px, 3px); }
+  74%  { transform: translate(-5px, 1px); }
+  88%  { transform: translate(2px, -3px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes glitch-jitter-body-back {
+  0%   { transform: translate(0, 0); }
+  13%  { transform: translate(2px, -1px); }
+  29%  { transform: translate(-2px, 2px); }
+  45%  { transform: translate(3px, -2px); }
+  62%  { transform: translate(-3px, 1px); }
+  79%  { transform: translate(2px, 2px); }
+  92%  { transform: translate(-2px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
 /* ---------- Music-Driven Global Text Glitch ---------- */
 
 /*
@@ -955,6 +1032,12 @@ body.crt-enabled::after {
 
 .music-glitch-target--body {
   --music-rhythm-rgb: 251 73 52;
+  --music-rhythm-shift: var(--music-shift-lg);
+  --music-rhythm-shift-neg: var(--music-shift-lg-neg);
+  --music-rhythm-shift-y: var(--music-shift-y-lg);
+  --music-glitch-front-duration: var(--music-body-glitch-front-duration);
+  --music-glitch-mid-duration: var(--music-body-glitch-mid-duration);
+  --music-glitch-back-duration: var(--music-body-glitch-back-duration);
 }
 
 /* Paused music preserves the last generated frame; only active playback

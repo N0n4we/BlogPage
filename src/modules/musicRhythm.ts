@@ -1,6 +1,8 @@
 import {
   applyBlackout,
   applyGlitchCharsGroup,
+  applyColorDispersion,
+  applyDepthBlackout,
   collectTextNodes,
   removeSomeGlitchSpans,
   restoreGlitchSpans,
@@ -16,17 +18,21 @@ export interface MusicGlitchOptions {
   profile: RhythmProfile;
 }
 
-type FrequencyBand = 'bass' | 'mid' | 'high' | 'full';
+type FrequencyBand = 'bass' | 'macro';
+type FineBand = 'sub' | 'bass' | 'lowMid' | 'mid' | 'presence' | 'high';
 type MusicState = 'idle' | 'paused' | 'playing' | 'unsupported' | 'reduced';
+type FrequencyRange = readonly [lowHz: number, highHz: number];
+type FineLevels = Record<FineBand, number>;
 
 interface RhythmSnapshot {
-  energy: number;
   bass: number;
   mid: number;
   high: number;
   bassPulse: number;
   midPulse: number;
   highPulse: number;
+  fine: FineLevels;
+  finePulse: FineLevels;
   beat: number;
 }
 
@@ -40,37 +46,76 @@ interface ProfileConfig {
   band: FrequencyBand;
   gain: number;
   beatChance: number;
+  beatBurstEnabled: boolean;
   minDelay: number;
   maxDelay: number;
+  cadenceResponse: number;
+  refreshScale: number;
   maxMutations: number;
   maxLength: number;
 }
 
 const FFT_SIZE = 1024;
-const CSS_UPDATE_INTERVAL = 1000 / 30;
+const CSS_UPDATE_INTERVAL = 1000 / 40;
 const MIN_BEAT_INTERVAL = 140;
+const RHYTHM_PULSE_THRESHOLD = 0.12;
 
-type FrequencyRange = readonly [lowHz: number, highHz: number];
-
-// These boundaries follow the useful instrument regions found in the bundled
-// tracks: kick/sub and bass, vocal/synth body, then presence and cymbals.
-// They are converted to bins at runtime because browsers may use 44.1 or 48 kHz.
-const ANALYSER_BANDS: Record<Exclude<FrequencyBand, 'full'>, FrequencyRange> = {
+// These boundaries separate the actual DOM effects: sub/kick cuts, bass depth,
+// vocal/synth symbol corruption, and high-frequency chromatic dispersion.
+const MACRO_BANDS = {
   bass: [20, 250],
   mid: [250, 2000],
   high: [2000, 12000],
+} as const satisfies Record<'bass' | 'mid' | 'high', FrequencyRange>;
+
+const FINE_BANDS: Record<FineBand, FrequencyRange> = {
+  sub: [20, 60],
+  bass: [60, 250],
+  lowMid: [250, 500],
+  mid: [500, 2000],
+  presence: [2000, 4000],
+  high: [4000, 12000],
 };
 
-const INTENSITY_CONFIG: Record<GlitchIntensity, { actionProbability: number; removeProbability: number; blackoutRatio: number }> = {
+const FINE_BAND_NAMES: FineBand[] = ['sub', 'bass', 'lowMid', 'mid', 'presence', 'high'];
+const FINE_RISE_GAIN: Record<FineBand, number> = {
+  sub: 5.4,
+  bass: 4.8,
+  lowMid: 5.1,
+  mid: 5.4,
+  presence: 5.9,
+  high: 6.2,
+};
+
+type GlitchKind = 'blackout' | 'depth' | 'dispersion' | 'symbols';
+
+const GLITCH_KIND_BANDS: Record<GlitchKind, readonly FineBand[]> = {
+  blackout: ['sub'],
+  depth: ['bass', 'lowMid'],
+  dispersion: ['presence', 'high'],
+  symbols: ['mid'],
+};
+const GLITCH_KINDS: readonly GlitchKind[] = ['blackout', 'depth', 'dispersion', 'symbols'];
+
+function createFineLevels(): FineLevels {
+  return {
+    sub: 0,
+    bass: 0,
+    lowMid: 0,
+    mid: 0,
+    presence: 0,
+    high: 0,
+  };
+}
+
+const INTENSITY_CONFIG: Record<GlitchIntensity, { actionProbability: number; removeProbability: number }> = {
   light: {
     actionProbability: 0.22,
     removeProbability: 0.26,
-    blackoutRatio: 0.68,
   },
   heavy: {
     actionProbability: 0.56,
-    removeProbability: 0.4,
-    blackoutRatio: 0.5,
+    removeProbability: 0.3,
   },
 };
 
@@ -79,48 +124,61 @@ const PROFILE_CONFIG: Record<RhythmProfile, ProfileConfig> = {
     band: 'bass',
     gain: 1.32,
     beatChance: 0.98,
+    beatBurstEnabled: true,
     minDelay: 90,
     maxDelay: 260,
+    cadenceResponse: 2.4,
+    refreshScale: 1,
     maxMutations: 1,
     maxLength: 4,
   },
   title: {
-    band: 'mid',
+    band: 'macro',
     gain: 1.3,
     beatChance: 0.9,
+    beatBurstEnabled: true,
     minDelay: 110,
     maxDelay: 330,
+    cadenceResponse: 2.2,
+    refreshScale: 1,
     maxMutations: 1,
     maxLength: 5,
   },
   meta: {
-    band: 'high',
+    band: 'macro',
     gain: 1.42,
     beatChance: 0.72,
+    beatBurstEnabled: true,
     minDelay: 80,
     maxDelay: 230,
+    cadenceResponse: 2,
+    refreshScale: 1,
     maxMutations: 1,
     maxLength: 2,
   },
   body: {
-    band: 'full',
+    band: 'macro',
     gain: 1.22,
-    beatChance: 0.95,
-    minDelay: 60,
-    maxDelay: 190,
-    maxMutations: 8,
-    maxLength: 8,
+    beatChance: 1,
+    beatBurstEnabled: true,
+    minDelay: 150,
+    maxDelay: 360,
+    cadenceResponse: 8,
+    refreshScale: 0.9,
+    maxMutations: 6,
+    maxLength: 12,
   },
 };
 
 const EMPTY_SNAPSHOT: RhythmSnapshot = {
-  energy: 0,
   bass: 0,
   mid: 0,
   high: 0,
   bassPulse: 0,
   midPulse: 0,
   highPulse: 0,
+  fine: createFineLevels(),
+  finePulse: createFineLevels(),
   beat: 0,
 };
 
@@ -173,6 +231,36 @@ function sampleAcrossText<T>(items: readonly T[], count: number): T[] {
   return selected;
 }
 
+function pickGlitchKind(snapshot: RhythmSnapshot): GlitchKind {
+  let totalWeight = 0;
+  let strongestKind = GLITCH_KINDS[0];
+  let strongestWeight = 0;
+  const weights = GLITCH_KINDS.map((kind) => {
+    const weight = Math.max(
+      ...GLITCH_KIND_BANDS[kind].map((band) =>
+        // Spectral rises lead the decision; the local envelope only keeps a
+        // sustained instrument from falling back to the first glitch kind.
+        snapshot.finePulse[band] * 0.84 + snapshot.fine[band] * 0.16,
+      ),
+    );
+    if (weight > strongestWeight) {
+      strongestKind = kind;
+      strongestWeight = weight;
+    }
+    totalWeight += weight;
+    return weight;
+  });
+
+  if (totalWeight <= 0) return strongestKind;
+
+  let cursor = Math.random() * totalWeight;
+  for (let index = 0; index < GLITCH_KINDS.length; index += 1) {
+    cursor -= weights[index];
+    if (cursor <= 0) return GLITCH_KINDS[index];
+  }
+  return strongestKind;
+}
+
 /**
  * One page-wide music-to-glitch bridge.
  *
@@ -197,13 +285,14 @@ class MusicRhythmController {
   private lastCssUpdateAt = 0;
   private lastFrameAt = 0;
   private lastBeatAt = 0;
-  private energy = 0;
   private bass = 0;
   private mid = 0;
   private high = 0;
   private bassPulse = 0;
   private midPulse = 0;
   private highPulse = 0;
+  private fineEnvelope = createFineLevels();
+  private finePulse = createFineLevels();
   private bassFloor = 0.04;
   private beatPulse = 0;
 
@@ -435,21 +524,23 @@ class MusicRhythmController {
     this.analyserNode.getByteFrequencyData(this.frequencyData);
 
     const sampleRate = this.audioContext?.sampleRate ?? 44100;
-    const rawBass = readBand(this.frequencyData, ANALYSER_BANDS.bass, sampleRate, FFT_SIZE);
-    const rawMid = readBand(this.frequencyData, ANALYSER_BANDS.mid, sampleRate, FFT_SIZE);
-    const rawHigh = readBand(this.frequencyData, ANALYSER_BANDS.high, sampleRate, FFT_SIZE);
-    const rawEnergy = clamp(rawBass * 0.46 + rawMid * 0.32 + rawHigh * 0.22);
+    const rawBass = readBand(this.frequencyData, MACRO_BANDS.bass, sampleRate, FFT_SIZE);
+    const rawMid = readBand(this.frequencyData, MACRO_BANDS.mid, sampleRate, FFT_SIZE);
+    const rawHigh = readBand(this.frequencyData, MACRO_BANDS.high, sampleRate, FFT_SIZE);
+    const rawFine = createFineLevels();
+    for (const band of FINE_BAND_NAMES) {
+      rawFine[band] = readBand(this.frequencyData, FINE_BANDS[band], sampleRate, FFT_SIZE);
+    }
     const deltaMs = Math.max(1, now - this.lastFrameAt);
     this.lastFrameAt = now;
 
-    // A smoothed envelope is useful for overall level, but it hides the
-    // attacks that make drums, picked bass, and consonants feel rhythmic.
-    // Keep those upward changes as short-lived per-band pulses as well.
+    // A smoothed envelope is useful for broad element motion, but it hides the
+    // attacks that distinguish individual glitch types. Keep those upward
+    // changes as short-lived fine-band pulses as well.
     const bassRise = clamp((rawBass - this.bass) * 4.6);
     const midRise = clamp((rawMid - this.mid) * 5.4);
     const highRise = clamp((rawHigh - this.high) * 6.2);
 
-    this.energy += (rawEnergy - this.energy) * (rawEnergy > this.energy ? 0.32 : 0.1);
     this.bass += (rawBass - this.bass) * (rawBass > this.bass ? 0.38 : 0.13);
     this.mid += (rawMid - this.mid) * (rawMid > this.mid ? 0.3 : 0.1);
     this.high += (rawHigh - this.high) * (rawHigh > this.high ? 0.24 : 0.08);
@@ -457,6 +548,12 @@ class MusicRhythmController {
     this.bassPulse = Math.max(bassRise, this.bassPulse * pulseDecay);
     this.midPulse = Math.max(midRise, this.midPulse * pulseDecay);
     this.highPulse = Math.max(highRise, this.highPulse * pulseDecay);
+    for (const band of FINE_BAND_NAMES) {
+      const fineDelta = rawFine[band] - this.fineEnvelope[band];
+      const fineRise = clamp(fineDelta * FINE_RISE_GAIN[band]);
+      this.fineEnvelope[band] += fineDelta * (fineDelta > 0 ? 0.3 : 0.11);
+      this.finePulse[band] = Math.max(fineRise, this.finePulse[band] * pulseDecay);
+    }
     this.bassFloor += (rawBass - this.bassFloor) * 0.018;
 
     const beatThreshold = Math.max(0.075, this.bassFloor * 1.34);
@@ -475,13 +572,14 @@ class MusicRhythmController {
     if (now - this.lastCssUpdateAt >= CSS_UPDATE_INTERVAL) {
       this.lastCssUpdateAt = now;
       const snapshot: RhythmSnapshot = {
-        energy: clamp(this.energy),
         bass: clamp(this.bass),
         mid: clamp(this.mid),
         high: clamp(this.high),
         bassPulse: clamp(this.bassPulse),
         midPulse: clamp(this.midPulse),
         highPulse: clamp(this.highPulse),
+        fine: { ...this.fineEnvelope },
+        finePulse: { ...this.finePulse },
         beat: clamp(this.beatPulse),
       };
       this.writeCssVariables(snapshot);
@@ -503,22 +601,30 @@ class MusicRhythmController {
       }
 
       const profile = PROFILE_CONFIG[target.options.profile];
-      const signal = this.profileSignal(profile.band, snapshot);
       const pulse = this.profilePulse(profile.band, snapshot);
       const level = clamp(
-        (signal * 0.64 + pulse * 1.18 + snapshot.energy * 0.42 + snapshot.beat * 0.92) * profile.gain,
+        (pulse * 1.28 + snapshot.beat * 0.72) * profile.gain,
       );
-      const isFreshBeat = now - this.lastBeatAt <= CSS_UPDATE_INTERVAL + 8;
-      const beatBurst = isFreshBeat && Math.random() < profile.beatChance;
+      // A rhythmic hit can be a bass beat or a strong rise in any macro band.
+      // Let the pulse decay window produce a few quick refreshes instead of
+      // waiting for the target's ordinary cadence timer.
+      const isFreshRhythm =
+        snapshot.beat >= 0.72 || pulse >= RHYTHM_PULSE_THRESHOLD;
+      const beatBurst =
+        profile.beatBurstEnabled &&
+        isFreshRhythm &&
+        Math.random() < profile.beatChance;
 
       if (!beatBurst && now < target.nextCycleAt) continue;
 
       const cadence = profile.minDelay + Math.random() * (profile.maxDelay - profile.minDelay);
-      target.nextCycleAt = now + cadence / (1 + level * 2.4);
+      target.nextCycleAt = now +
+        (cadence * profile.refreshScale) /
+        (1 + level * profile.cadenceResponse);
 
       if (!beatBurst && Math.random() > 0.18 + level * 0.82) continue;
 
-      this.mutateTarget(target, profile, level, beatBurst);
+      this.mutateTarget(target, profile, level, beatBurst, snapshot);
     }
   }
 
@@ -527,13 +633,15 @@ class MusicRhythmController {
     profile: ProfileConfig,
     level: number,
     beatBurst: boolean,
+    snapshot: RhythmSnapshot,
   ): void {
     const intensity = INTENSITY_CONFIG[target.options.intensity];
     const actionProbability = clamp(
       intensity.actionProbability * (0.58 + level * 1.0 + (beatBurst ? 0.4 : 0)),
     );
     const removeProbability = clamp(
-      intensity.removeProbability * (0.55 + level * 0.45),
+      intensity.removeProbability * (0.55 + level * 0.45) +
+        (target.options.profile === 'body' ? level * 0.45 : 0),
     );
 
     removeSomeGlitchSpans(target.element, removeProbability);
@@ -545,43 +653,51 @@ class MusicRhythmController {
     if (candidates.length === 0) return;
 
     const expectedMutations = profile.maxMutations * actionProbability;
+    const peakCoverage =
+      target.options.profile === 'body' ? clamp((level - 0.25) / 0.75) : 0;
+    // At a real peak, readability is intentionally sacrificed: cover the
+    // complete eligible text set so a long post does not look mostly intact.
+    const coverageMutations =
+      peakCoverage > 0 ? Math.ceil(candidates.length * peakCoverage) : 0;
     const mutationCount = Math.min(
       candidates.length,
       Math.max(
         1,
-        Math.floor(expectedMutations) +
-          (Math.random() < expectedMutations % 1 ? 1 : 0),
+        coverageMutations ||
+          Math.floor(expectedMutations) +
+            (Math.random() < expectedMutations % 1 ? 1 : 0),
       ),
     );
-
     for (const textNode of sampleAcrossText(candidates, mutationCount)) {
       const text = textNode.textContent ?? '';
 
       const maxLength = Math.min(
         text.length,
-        Math.max(1, Math.ceil(profile.maxLength * (beatBurst ? 1.2 : 1))),
+        peakCoverage > 0
+          ? Math.max(1, Math.ceil(text.length * (0.25 + peakCoverage * 0.75)))
+          : Math.max(1, Math.ceil(profile.maxLength * (beatBurst ? 1.2 : 1))),
       );
-      const length = Math.min(Math.ceil(Math.random() * maxLength), text.length);
+      const length =
+        peakCoverage >= 0.9
+          ? text.length
+          : Math.min(Math.ceil(Math.random() * maxLength), text.length);
       const start = Math.floor(Math.random() * (text.length - length + 1));
+      const kind = pickGlitchKind(snapshot);
 
-      if (Math.random() < intensity.blackoutRatio) {
-        applyBlackout(textNode, start, length);
-      } else {
-        applyGlitchCharsGroup(textNode, start, length);
+      switch (kind) {
+        case 'blackout':
+          applyBlackout(textNode, start, length);
+          break;
+        case 'depth':
+          applyDepthBlackout(textNode, start, length);
+          break;
+        case 'dispersion':
+          applyColorDispersion(textNode, start, length);
+          break;
+        case 'symbols':
+          applyGlitchCharsGroup(textNode, start, length);
+          break;
       }
-    }
-  }
-
-  private profileSignal(band: FrequencyBand, snapshot: RhythmSnapshot): number {
-    switch (band) {
-      case 'bass':
-        return snapshot.bass;
-      case 'mid':
-        return snapshot.mid;
-      case 'high':
-        return snapshot.high;
-      case 'full':
-        return snapshot.energy;
     }
   }
 
@@ -589,11 +705,7 @@ class MusicRhythmController {
     switch (band) {
       case 'bass':
         return snapshot.bassPulse;
-      case 'mid':
-        return snapshot.midPulse;
-      case 'high':
-        return snapshot.highPulse;
-      case 'full':
+      case 'macro':
         return Math.max(snapshot.bassPulse, snapshot.midPulse, snapshot.highPulse);
     }
   }
@@ -630,13 +742,14 @@ class MusicRhythmController {
     this.lastCssUpdateAt = 0;
     this.lastFrameAt = 0;
     this.lastBeatAt = 0;
-    this.energy = 0;
     this.bass = 0;
     this.mid = 0;
     this.high = 0;
     this.bassPulse = 0;
     this.midPulse = 0;
     this.highPulse = 0;
+    this.fineEnvelope = createFineLevels();
+    this.finePulse = createFineLevels();
     this.bassFloor = 0.04;
     this.beatPulse = 0;
   }
@@ -645,12 +758,12 @@ class MusicRhythmController {
     if (typeof document === 'undefined') return;
 
     const root = document.documentElement;
-    const spectralPulse = Math.max(
+    const macroPulse = Math.max(
       snapshot.bassPulse,
       snapshot.midPulse,
       snapshot.highPulse,
     );
-    const reaction = clamp(snapshot.energy * 0.82 + spectralPulse * 0.68 + snapshot.beat * 0.92);
+    const reaction = clamp(macroPulse * 1.15 + snapshot.beat * 0.82);
     const tiers = [
       ['xs', 0.65],
       ['sm', 1],
@@ -658,21 +771,26 @@ class MusicRhythmController {
       ['lg', 1.9],
     ] as const;
 
-    root.style.setProperty('--music-energy', snapshot.energy.toFixed(3));
+    root.style.setProperty('--music-spectrum-pulse', macroPulse.toFixed(3));
     root.style.setProperty('--music-bass', snapshot.bass.toFixed(3));
     root.style.setProperty('--music-mid', snapshot.mid.toFixed(3));
     root.style.setProperty('--music-high', snapshot.high.toFixed(3));
     root.style.setProperty('--music-pulse', snapshot.beat.toFixed(3));
     root.style.setProperty('--music-chroma', (0.18 + reaction * 0.8).toFixed(3));
-    root.style.setProperty('--music-glitch-front-duration', `${Math.round(180 - reaction * 135)}ms`);
-    root.style.setProperty('--music-glitch-mid-duration', `${Math.round(240 - reaction * 145)}ms`);
-    root.style.setProperty('--music-glitch-back-duration', `${Math.round(390 - reaction * 215)}ms`);
+    root.style.setProperty('--music-glitch-front-duration', `${Math.round(340 - reaction * 100)}ms`);
+    root.style.setProperty('--music-glitch-mid-duration', `${Math.round(500 - reaction * 140)}ms`);
+    root.style.setProperty('--music-glitch-back-duration', `${Math.round(760 - reaction * 220)}ms`);
+
+    const bodyReaction = clamp(macroPulse * 1.45 + snapshot.beat * 1.05);
+    root.style.setProperty('--music-body-glitch-front-duration', `${Math.round(310 - bodyReaction * 250)}ms`);
+    root.style.setProperty('--music-body-glitch-mid-duration', `${Math.round(460 - bodyReaction * 360)}ms`);
+    root.style.setProperty('--music-body-glitch-back-duration', `${Math.round(700 - bodyReaction * 520)}ms`);
 
     for (const [name, gain] of tiers) {
       const shift = reaction * gain * 4.8;
       const verticalShift = (
-        snapshot.high * 0.35 +
         snapshot.highPulse * 0.55 +
+        Math.max(snapshot.finePulse.presence, snapshot.finePulse.high) * 0.25 +
         snapshot.beat * 0.7
       ) * gain * 1.8;
       const scale = 1 + reaction * gain * 0.018;

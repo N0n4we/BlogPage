@@ -42,6 +42,8 @@ export function collectTextNodes(root: HTMLElement): Text[] {
         while (p && p !== root) {
           if (
             p.classList.contains('glitch-blackout') ||
+            p.classList.contains('glitch-depth') ||
+            p.classList.contains('glitch-dispersion') ||
             p.classList.contains('glitch-chars') ||
             p.classList.contains('glitch-chars-mid') ||
             p.classList.contains('glitch-chars-back') ||
@@ -76,42 +78,51 @@ export function walkTextNodes(
   }
 }
 
+function getRestoredText(span: Element): string {
+  if (!span.classList.contains('glitch-chars-group')) {
+    return span.textContent || '';
+  }
+
+  const originalText = span.getAttribute('data-original-text');
+  if (originalText !== null) return originalText;
+
+  // Fallback for groups created before the original segment was stored.
+  return (
+    span.querySelector('.glitch-chars-mid') as HTMLElement | null
+  )?.textContent ||
+    (span.querySelector('.glitch-chars') as HTMLElement | null)?.textContent ||
+    span.textContent ||
+    '';
+}
+
 // Remove a random subset of existing glitch spans (without normalizing across
 // the whole tree, to keep behavior incremental). Returns how many were removed.
 export function removeSomeGlitchSpans(
   root: HTMLElement,
   removeProbability: number
 ): number {
-  const spans = root.querySelectorAll('.glitch-blackout, .glitch-chars-group');
+  const spans = root.querySelectorAll(
+    '.glitch-blackout, .glitch-depth, .glitch-dispersion, .glitch-chars-group',
+  );
   let removed = 0;
   for (let i = spans.length - 1; i >= 0; i--) {
     if (Math.random() >= removeProbability) continue;
     const span = spans[i];
-    // For groups, extract text from one layer to avoid 3× concatenation.
-    const text =
-      span.classList.contains('glitch-chars-group')
-        ? (span.querySelector('.glitch-chars-mid') as HTMLElement | null)
-            ?.textContent ||
-          (span.querySelector('.glitch-chars') as HTMLElement | null)
-            ?.textContent ||
-          span.textContent ||
-          ''
-        : span.textContent || '';
-    span.replaceWith(document.createTextNode(text));
+    span.replaceWith(document.createTextNode(getRestoredText(span)));
     removed++;
   }
   if (removed > 0) root.normalize();
   return removed;
 }
 
-// Splits textNode at [start, start+length), wraps the middle in
-// <span class="glitch-blackout">, and replaces the original node.
-// Uses independent scale & translate CSS properties to coexist with any
-// CSS animation that sets `transform` (e.g. glitch-jitter).
-export function applyBlackout(
+// Shared implementation for flat and recessed blackouts. The recessed variant
+// uses independent scale and translate properties so CSS jitter can coexist.
+function applyBlackoutVariant(
   textNode: Text,
   start: number,
-  length: number
+  length: number,
+  className: 'glitch-blackout' | 'glitch-depth',
+  recessed: boolean,
 ): void {
   const text = textNode.textContent || '';
   const parent = textNode.parentNode;
@@ -126,19 +137,53 @@ export function applyBlackout(
   if (before) fragment.appendChild(document.createTextNode(before));
 
   const span = document.createElement('span');
-  span.className = 'glitch-blackout';
-  // Depth: scale down + translateZ backward.
-  // translateZ is a no-op in flat contexts (content area), works in 3D (title).
-  // Depth: smaller scale reduction so translateZ carries more weight
-  // through perspective. Combined with scanline texture (CSS) and
-  // chromatic displacement from adjacent glitch chars for depth.
-  const recess = 3 + Math.random() * 14;             // 3–17
-  const shrink = (1 - recess * 0.018).toFixed(3);    // 0.946–0.694
-  const depth = (-recess * 18).toFixed(0);           // −54 to −306 px
-  // Independent properties — won't be overridden by CSS `transform` animations.
-  span.style.scale = shrink;
-  span.style.translate = `0 0 ${depth}px`;
-  span.style.transformOrigin = 'center';
+  span.className = className;
+  if (recessed) {
+    // Independent CSS properties coexist with the jitter animation's transform.
+    const recess = 3 + Math.random() * 14;
+    span.style.scale = (1 - recess * 0.018).toFixed(3);
+    span.style.translate = `0 0 ${(-recess * 18).toFixed(0)}px`;
+    span.style.transformOrigin = 'center';
+  }
+  span.textContent = middle;
+  fragment.appendChild(span);
+
+  if (after) fragment.appendChild(document.createTextNode(after));
+  parent.replaceChild(fragment, textNode);
+}
+
+// Flat blackout: cover the source glyphs without changing their layout width.
+export function applyBlackout(textNode: Text, start: number, length: number): void {
+  applyBlackoutVariant(textNode, start, length, 'glitch-blackout', false);
+}
+
+// Recessed blackout: push the covered glyphs behind the text plane.
+export function applyDepthBlackout(textNode: Text, start: number, length: number): void {
+  applyBlackoutVariant(textNode, start, length, 'glitch-depth', true);
+}
+
+// Preserve the source glyphs while adding a temporary RGB separation layer.
+export function applyColorDispersion(
+  textNode: Text,
+  start: number,
+  length: number,
+): void {
+  const text = textNode.textContent || '';
+  const parent = textNode.parentNode;
+  if (!parent || length <= 0 || start >= text.length) return;
+
+  const end = Math.min(start + length, text.length);
+  const before = text.slice(0, start);
+  const middle = text.slice(start, end);
+  const after = text.slice(end);
+  const fragment = document.createDocumentFragment();
+  if (before) fragment.appendChild(document.createTextNode(before));
+
+  const span = document.createElement('span');
+  const offset = (1.5 + Math.random() * 2.5).toFixed(1);
+  span.className = 'glitch-dispersion';
+  span.style.setProperty('--glitch-dispersion-offset', `${offset}px`);
+  span.style.setProperty('--glitch-dispersion-offset-neg', `-${offset}px`);
   span.textContent = middle;
   fragment.appendChild(span);
 
@@ -240,6 +285,7 @@ export function applyGlitchCharsGroup(
   // Outer group — inline-grid so all layers overlap in the same 2D cell.
   const group = document.createElement('span');
   group.className = 'glitch-chars-group';
+  group.dataset.originalText = text.slice(start, end);
   group.style.display = 'inline-grid';
 
   for (const preset of LAYER_PRESETS) {
@@ -274,24 +320,16 @@ export function applyGlitchCharsGroup(
   parent.replaceChild(fragment, textNode);
 }
 
-// Undo all glitch modifications: replace .glitch-blackout and .glitch-chars-group
-// elements with their text content, then normalize to merge adjacent text nodes.
-// For groups, text is extracted from a single layer to avoid 3× concatenation.
+// Undo all glitch modifications and normalize adjacent text nodes. For groups,
+// getRestoredText extracts one layer to avoid restoring 3× duplicated text.
 export function restoreGlitchSpans(root: HTMLElement): void {
-  const spans = root.querySelectorAll('.glitch-blackout, .glitch-chars-group');
+  const spans = root.querySelectorAll(
+    '.glitch-blackout, .glitch-depth, .glitch-dispersion, .glitch-chars-group',
+  );
   // Iterate in reverse to handle potential nesting safely
   for (let i = spans.length - 1; i >= 0; i--) {
     const span = spans[i];
-    const text =
-      span.classList.contains('glitch-chars-group')
-        ? (span.querySelector('.glitch-chars-mid') as HTMLElement | null)
-            ?.textContent ||
-          (span.querySelector('.glitch-chars') as HTMLElement | null)
-            ?.textContent ||
-          span.textContent ||
-          ''
-        : span.textContent || '';
-    span.replaceWith(document.createTextNode(text));
+    span.replaceWith(document.createTextNode(getRestoredText(span)));
   }
   root.normalize();
 }
