@@ -1,8 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export interface ScrollStage {
-  /** Cumulative scroll distance from header to blog section top (px). Used by MusicPlayer. */
-  travelDist: number;
   /** 0 → 1 reveal progress. 0 = page top, 1 = blog section reached. Used by BlogPostList and Footer. */
   revealProgress: number;
   /** Ref to attach to the blog section element for position measurement. */
@@ -12,7 +10,7 @@ export interface ScrollStage {
 /**
  * Deep module for the page's scroll-driven reveal timeline.
  *
- * Interface (3 surface items): travelDist, revealProgress, blogRef.
+ * Interface (2 surface items): revealProgress, blogRef.
  * Implementation absorbs: scroll listener lifecycle, RAF throttling, fallback
  * timeout, lock-once semantics, and responsive re-measurement.
  *
@@ -23,8 +21,6 @@ export interface ScrollStage {
 export function useScrollStage(): ScrollStage {
   const blogRef = useRef<HTMLElement>(null);
   const [revealProgress, setRevealProgress] = useState(0);
-  const [travelDist, setTravelDist] = useState(0);
-  const travelDistRef = useRef(0);
   const rafRef = useRef(0);
   const lockedRef = useRef(false);
 
@@ -39,10 +35,6 @@ export function useScrollStage(): ScrollStage {
       if (!blog) return;
       const blogTop = blog.getBoundingClientRect().top + window.scrollY;
       const dist = Math.max(0, blogTop - 60);
-      if (dist !== travelDistRef.current) {
-        travelDistRef.current = dist;
-        setTravelDist(dist);
-      }
       if (dist <= 160) {
         setRevealProgress(1);
         lockedRef.current = true;
@@ -53,7 +45,6 @@ export function useScrollStage(): ScrollStage {
       setRevealProgress(progress);
       if (progress >= 1) {
         lockedRef.current = true;
-        window.removeEventListener('scroll', onScroll);
       }
     });
   }, []);
@@ -83,5 +74,5 @@ export function useScrollStage(): ScrollStage {
     };
   }, [onScroll]);
 
-  return { travelDist, revealProgress, blogRef };
+  return { revealProgress, blogRef };
 }

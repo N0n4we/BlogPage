@@ -2,17 +2,14 @@ import { useRef } from 'react';
 import { useScrollPosition } from '../hooks/useScrollPosition';
 import { useGlitchEffect } from '../hooks/useGlitchEffect';
 
-interface HeaderProps {
-  hasEverExpanded: boolean;
-}
-
-export default function Header({ hasEverExpanded }: HeaderProps) {
+export default function Header() {
   const isFolded = useScrollPosition();
   const logoRef = useRef<HTMLHeadingElement>(null);
 
   useGlitchEffect(logoRef, {
-    enabled: hasEverExpanded,
+    enabled: true,
     intensity: 'light',
+    profile: 'logo',
   });
 
   return (

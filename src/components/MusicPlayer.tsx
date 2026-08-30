@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import APlayer from 'aplayer';
-import AudioVisualizer from './AudioVisualizer';
+import { musicRhythm } from '../modules/musicRhythm';
 
 interface Song {
   name: string;
@@ -27,44 +27,22 @@ const songs: Song[] = [
   },
 ];
 
-export default function MusicPlayer({ travelDist }: { travelDist: number }) {
+export default function MusicPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<APlayer | null>(null);
-  const visWrapperRef = useRef<HTMLDivElement>(null);
-  const musicPostRef = useRef<HTMLDivElement>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [visReady, setVisReady] = useState(false);
-  const [visHeight, setVisHeight] = useState(160);
-  const initialGapRef = useRef(0);
 
-  /* ---------- Visualizer height: derived from travelDist (no own scroll listener) ----------
-   * useScrollStage tracks scroll position; we react to travelDist changes to
-   * compute visHeight = max(160, initialGap - scrollY). */
+  // No visible visualizer remains. The controller keeps a single, lightweight
+  // analyser only to drive page-wide text rhythm.
   useEffect(() => {
-    const postEl = musicPostRef.current;
-    if (!postEl) return;
+    musicRhythm.connect(audioElement);
+    return () => musicRhythm.disconnect(audioElement);
+  }, [audioElement]);
 
-    const playerBottom = postEl.getBoundingClientRect().bottom;
-    const viewH = window.innerHeight;
-    const gap = viewH - playerBottom;
-
-    if (initialGapRef.current === 0 && gap > 160) {
-      initialGapRef.current = gap;
-    }
-    const initialGap = initialGapRef.current || gap;
-
-    const h = Math.max(160, initialGap - window.scrollY);
-    setVisHeight(Math.round(h));
-    setVisReady(true);
-  }, [travelDist]);
-
-  // Invalidate initialGap on resize so it's recalculated on next travelDist change
   useEffect(() => {
-    const handleResize = () => { initialGapRef.current = 0; };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    musicRhythm.setPlaying(isPlaying);
+  }, [isPlaying]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -81,7 +59,7 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
 
     playerRef.current = ap;
 
-    // Expose the underlying <audio> element for the visualizer
+    // Expose the underlying <audio> element for the page-wide rhythm engine.
     const audio = (ap as unknown as { audio: HTMLAudioElement }).audio;
     if (audio) setAudioElement(audio);
 
@@ -108,6 +86,7 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
       removeInteractionListeners();
     });
     ap.on('pause', () => setIsPlaying(false));
+    ap.on('ended', () => setIsPlaying(false));
 
     return () => {
       removeInteractionListeners();
@@ -118,25 +97,12 @@ export default function MusicPlayer({ travelDist }: { travelDist: number }) {
   }, []);
 
   return (
-    <div className="music-player-post" ref={musicPostRef}>
+    <div className="music-player-post">
       <div className="music-player">
         <div style={{ textAlign: 'center' }}>
           <div ref={containerRef} id="aplayer"></div>
         </div>
       </div>
-      {visReady && (
-        <div
-          ref={visWrapperRef}
-          style={{
-            height: `${visHeight}px`,
-            display: 'flex',
-            alignItems: 'center',
-            transition: 'height 0.2s linear',
-          }}
-        >
-          <AudioVisualizer audioElement={audioElement} isPlaying={isPlaying} height={visHeight} />
-        </div>
-      )}
     </div>
   );
 }

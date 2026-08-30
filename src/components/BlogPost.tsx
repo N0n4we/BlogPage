@@ -40,13 +40,13 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
   // DOM refs
   const postRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const metaRef = useRef<HTMLParagraphElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const { containerRef, expand, collapse, syncHeight } = useContentTransition();
-  const eatenRef = useRef(false);
   const [devouredHtml, setDevouredHtml] = useState('');
 
   // Display: show devoured HTML after first collapse, original otherwise
-  const displayHtml = eatenRef.current ? devouredHtml : html;
+  const displayHtml = devouredHtml || html;
 
   // Meta description from content summary (only when expanded)
   useEffect(() => {
@@ -80,6 +80,7 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
 
   // ---- 展开 / 折叠 + 吞噬 ----
   useEffect(() => {
+    let cancelled = false;
     const isCurrentlyExpanded = containerRef.current?.classList.contains('expanded') ?? false;
 
     if (isExpanded) {
@@ -88,16 +89,19 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
       expand();
     } else if (isCurrentlyExpanded) {
       // First collapse: replace content with mantra
-      if (!eatenRef.current && html && !error) {
+      if (!devouredHtml && html && !error) {
         const dh = devourContent(html, DEVOUR_MANTRA);
         // Sync DOM immediately so the collapse transition shows the mantra
         if (contentRef.current) contentRef.current.innerHTML = dh;
-        setDevouredHtml(dh);
-        eatenRef.current = true;
+        queueMicrotask(() => {
+          if (!cancelled) setDevouredHtml(dh);
+        });
       }
       collapse();
     }
-  }, [isExpanded, loading, html, error, expand, collapse, containerRef]);
+
+    return () => { cancelled = true; };
+  }, [isExpanded, loading, html, error, devouredHtml, expand, collapse, containerRef]);
 
   // ---- 内容就绪后 Prism 高亮 + 调整高度 ----
   useEffect(() => {
@@ -138,13 +142,22 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
 
   // ---- Glitch 效果 ----
   useGlitchEffect(titleRef, {
-    enabled: !!html && !error,
+    enabled: true,
     intensity: 'light',
+    profile: 'title',
+  });
+
+  useGlitchEffect(metaRef, {
+    enabled: true,
+    intensity: 'light',
+    profile: 'meta',
   });
 
   useGlitchEffect(contentRef, {
     enabled: !!html && !error,
+    paused: !isExpanded,
     intensity: 'heavy',
+    profile: 'body',
   });
 
   // ---- 渲染 ----
@@ -160,7 +173,7 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
     >
       <div className="post-content-wrapper">
         <h3 ref={titleRef}>{post.title}</h3>
-        <p className="post-meta">{post.displayDate}</p>
+        <p className="post-meta" ref={metaRef}>{post.displayDate}</p>
 
         <div className="post-full-content" ref={containerRef}>
           <div

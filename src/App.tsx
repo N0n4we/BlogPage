@@ -10,15 +10,15 @@ import { usePostNavigation } from './hooks/usePostNavigation';
 import { useScrollStage } from './hooks/useScrollStage';
 
 function BlogPage() {
-  const { expandedPostId, togglePost, hasEverExpanded } = usePostNavigation();
-  const { travelDist, revealProgress, blogRef } = useScrollStage();
+  const { expandedPostId, togglePost } = usePostNavigation();
+  const { revealProgress, blogRef } = useScrollStage();
   const mainRef = useRef<HTMLElement>(null);
 
   return (
     <>
-      <Header hasEverExpanded={hasEverExpanded} />
+      <Header />
       <main className="main" ref={mainRef}>
-        <MusicPlayer travelDist={travelDist} />
+        <MusicPlayer />
         <BlogPostList
           ref={blogRef}
           expandedPostId={expandedPostId}

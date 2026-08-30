@@ -99,6 +99,37 @@
   --crt-grain-opacity: 0.04;
   --crt-grain-speed: 0.3s;
   --crt-z-index: 9998;
+
+  /* Music rhythm bridge. Values are written by src/modules/musicRhythm.ts. */
+  --music-energy: 0;
+  --music-bass: 0;
+  --music-mid: 0;
+  --music-high: 0;
+  --music-pulse: 0;
+  --music-chroma: 0;
+  --music-glitch-front-duration: 180ms;
+  --music-glitch-mid-duration: 240ms;
+  --music-glitch-back-duration: 390ms;
+  --music-shift-xs: 0px;
+  --music-shift-xs-neg: 0px;
+  --music-shift-y-xs: 0px;
+  --music-scale-xs: 1;
+  --music-letter-xs: 0em;
+  --music-shift-sm: 0px;
+  --music-shift-sm-neg: 0px;
+  --music-shift-y-sm: 0px;
+  --music-scale-sm: 1;
+  --music-letter-sm: 0em;
+  --music-shift-md: 0px;
+  --music-shift-md-neg: 0px;
+  --music-shift-y-md: 0px;
+  --music-scale-md: 1;
+  --music-letter-md: 0em;
+  --music-shift-lg: 0px;
+  --music-shift-lg-neg: 0px;
+  --music-shift-y-lg: 0px;
+  --music-scale-lg: 1;
+  --music-letter-lg: 0em;
 }
 
 html,
@@ -1060,7 +1091,8 @@ pre code,
   /* Smooth opacity transition for natural appear/disappear during
      glitch cycle rotation (removeSomeGlitchSpans / applyGlitchChars). */
   transition: opacity 0.15s ease;
-  animation: glitch-jitter 0.05s steps(3, jump-start) infinite;
+  animation: glitch-jitter var(--music-glitch-front-duration) steps(3, jump-start) infinite;
+  animation-play-state: paused;
 }
 
 /* ---- Mid layer: softer aberration, lighter jitter ---- */
@@ -1079,7 +1111,8 @@ pre code,
       rgba(0, 0, 0, 0.03) 3px
     );
   transition: opacity 0.15s ease;
-  animation: glitch-jitter-mid 0.08s steps(3, jump-start) infinite;
+  animation: glitch-jitter-mid var(--music-glitch-mid-duration) steps(3, jump-start) infinite;
+  animation-play-state: paused;
 }
 
 /* ---- Back layer: faintest aberration, slowest jitter ---- */
@@ -1103,7 +1136,13 @@ pre code,
     );
   transition: opacity 0.15s ease;
   /* Slowest jitter — distant motion parallax is less pronounced. */
-  animation: glitch-jitter-back 0.20s steps(3, jump-start) infinite;
+  animation: glitch-jitter-back var(--music-glitch-back-duration) steps(3, jump-start) infinite;
+  animation-play-state: paused;
+}
+
+/* Existing character layers stay completely still until the music starts. */
+html[data-music-state='playing'] :is(.glitch-chars, .glitch-chars-mid, .glitch-chars-back) {
+  animation-play-state: running;
 }
 
 /* ---------- CRT Overlay (Scanlines + Film Grain) ---------- */
@@ -1229,132 +1268,91 @@ body.crt-enabled::after {
   100% { transform: translate(0, 0); }
 }
 
-/* ---------- Audio Visualizer (PRD-004) ---------- */
+/* ---------- Music-Driven Global Text Glitch ---------- */
 
-.audio-visualizer {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  gap: 4px;
-  height: 160px;
-  width: 100%;
-  overflow: hidden;
-  margin: 0 auto;
-  padding: 0 8px;
-  box-sizing: border-box;
+/*
+ * Font size and palette select a profile rather than merely changing visual
+ * styling. The analyser supplies shared values while these profiles choose
+ * how much movement, chroma separation, and cadence each text tier receives.
+ */
+.music-glitch-target {
+  --music-rhythm-shift: var(--music-shift-sm);
+  --music-rhythm-shift-neg: var(--music-shift-sm-neg);
+  --music-rhythm-shift-y: var(--music-shift-y-sm);
+  --music-rhythm-scale: var(--music-scale-sm);
+  --music-rhythm-letter: var(--music-letter-sm);
+  --music-rhythm-rgb: 235 219 178;
 }
 
-/* Stereo column: 50% top (left ch) + 50% bottom (right ch) */
-.audio-visualizer--stereo .audio-visualizer__col {
-  flex: 1;
-  min-width: 3px;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.music-glitch-target--logo {
+  --music-rhythm-shift: var(--music-shift-lg);
+  --music-rhythm-shift-neg: var(--music-shift-lg-neg);
+  --music-rhythm-shift-y: var(--music-shift-y-lg);
+  --music-rhythm-scale: var(--music-scale-lg);
+  --music-rhythm-letter: var(--music-letter-lg);
+  --music-rhythm-rgb: 250 189 47;
 }
 
-/* Shared bar base */
-.audio-visualizer__bar {
-  width: 100%;
-  transform: scaleY(0);
-  will-change: transform;
+.music-glitch-target--title {
+  --music-rhythm-shift: var(--music-shift-md);
+  --music-rhythm-shift-neg: var(--music-shift-md-neg);
+  --music-rhythm-shift-y: var(--music-shift-y-md);
+  --music-rhythm-scale: var(--music-scale-md);
+  --music-rhythm-letter: var(--music-letter-md);
+  --music-rhythm-rgb: 235 219 178;
 }
 
-/* Left channel — upper half, grows upward */
-.audio-visualizer__bar--left {
-  flex: 1;
-  transform-origin: bottom center;
-  border-radius: 2px 2px 0 0;
-  margin-bottom: 1px;
+.music-glitch-target--meta {
+  --music-rhythm-shift: var(--music-shift-xs);
+  --music-rhythm-shift-neg: var(--music-shift-xs-neg);
+  --music-rhythm-shift-y: var(--music-shift-y-xs);
+  --music-rhythm-scale: var(--music-scale-xs);
+  --music-rhythm-letter: var(--music-letter-xs);
+  --music-rhythm-rgb: 146 131 116;
 }
 
-/* Right channel — lower half, grows downward */
-.audio-visualizer__bar--right {
-  flex: 1;
-  transform-origin: top center;
-  border-radius: 0 0 2px 2px;
-  margin-top: 1px;
+.music-glitch-target--body {
+  --music-rhythm-rgb: 251 73 52;
 }
 
-/* Loading state — bars visible at minimal height before analyser initialises */
-.audio-visualizer--loading .audio-visualizer__bar {
-  animation: visualizer-loading-pulse 1.8s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * 0.05s);
+/* Paused music preserves the last generated frame; only active playback
+   advances the variables and random character replacement. */
+html:is([data-music-state='playing'], [data-music-state='paused']) .music-glitch-target {
+  text-shadow:
+    var(--music-rhythm-shift-neg) 0 0 rgb(131 165 152 / var(--music-chroma)),
+    var(--music-rhythm-shift) var(--music-rhythm-shift-y) 0 rgb(var(--music-rhythm-rgb) / var(--music-chroma));
 }
 
-@keyframes visualizer-loading-pulse {
-  0%, 100% { transform: scaleY(0.06); }
-  50% { transform: scaleY(0.14); }
+html:is([data-music-state='playing'], [data-music-state='paused']) .music-glitch-target:not(.music-glitch-target--body) {
+  scale: var(--music-rhythm-scale);
+  letter-spacing: var(--music-rhythm-letter);
 }
 
-/* Static fallback bars (pulsed gradient placeholder) */
-.audio-visualizer--fallback {
-  position: relative;
+html[data-music-state='playing'] .music-glitch-target {
+  will-change: transform, text-shadow, letter-spacing;
 }
 
-.audio-visualizer__placeholder {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 3px;
-  width: 100%;
-  height: 100%;
-  opacity: 0.3;
+/* APlayer creates these labels outside React. They receive the same rhythm
+   through CSS only so the player's own DOM and controls remain stable. */
+html:is([data-music-state='playing'], [data-music-state='paused']) .aplayer :is(
+  .aplayer-title,
+  .aplayer-author,
+  .aplayer-list-title,
+  .aplayer-list-author
+) {
+  text-shadow:
+    var(--music-shift-xs-neg) 0 0 rgb(131 165 152 / var(--music-chroma)),
+    var(--music-shift-xs) var(--music-shift-y-xs) 0 rgb(235 219 178 / var(--music-chroma));
+  letter-spacing: var(--music-letter-xs);
 }
 
-.audio-visualizer__bar--static {
-  flex: 1;
-  min-width: 3px;
-  max-width: 10px;
-  height: 30%;
-  border-radius: 2px 2px 0 0;
-  animation: visualizer-pulse 2s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * 0.06s);
-}
-
-.audio-visualizer__fallback-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  color: var(--post-meta-color);
-  pointer-events: none;
-}
-
-@keyframes visualizer-pulse {
-  0%, 100% { height: 20%; }
-  50% { height: 50%; }
-}
-
-/* Responsive: tighter spacing on narrow screens */
-@media (max-width: 480px) {
-  .audio-visualizer {
-    height: 100px;
-    gap: 2px;
-    padding: 0 4px;
-  }
-
-  .audio-visualizer--stereo .audio-visualizer__col {
-    min-width: 2px;
-  }
-}
-
-/* Accessibility: disable animation for reduced-motion users */
 @media (prefers-reduced-motion: reduce) {
-  .audio-visualizer__bar {
-    transform: scaleY(0) !important;
-    transition: none !important;
-    will-change: auto;
-  }
-
-  .audio-visualizer__bar--static {
-    animation: none;
-  }
-
-  .audio-visualizer__fallback-text::after {
-    content: ' (animation disabled)';
+  .music-glitch-target,
+  .aplayer :is(.aplayer-title, .aplayer-author, .aplayer-list-title, .aplayer-list-author) {
+    scale: 1 !important;
+    letter-spacing: normal !important;
+    text-shadow: none !important;
+    will-change: auto !important;
   }
 }
 
