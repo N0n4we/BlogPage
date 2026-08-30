@@ -21,6 +21,27 @@ export function getRandomGlitchString(length: number): string {
   return s;
 }
 
+export type GlitchSpanGroup = 'all' | 'blackout' | 'dispersion';
+
+export interface BlackoutCoverage {
+  blackoutCharacters: number;
+  totalCharacters: number;
+  ratio: number;
+}
+
+interface TextCoverage {
+  blackoutCharacters: number;
+  totalCharacters: number;
+}
+
+const GLITCH_SPAN_SELECTORS: Record<GlitchSpanGroup, string> = {
+  all: '.glitch-blackout, .glitch-depth, .glitch-chars-group',
+  blackout: '.glitch-blackout, .glitch-depth',
+  // "Dispersion" is the high-frequency three-layer glyph object, rather than
+  // a colour shadow applied to the source characters.
+  dispersion: '.glitch-chars-group',
+};
+
 // Collect all #text nodes under root, skipping those inside <pre>, <code>,
 // or already inside a glitch span (so glitches don't nest on each other).
 // Collects nodes first because the caller may mutate the tree while iterating.
@@ -43,7 +64,6 @@ export function collectTextNodes(root: HTMLElement): Text[] {
           if (
             p.classList.contains('glitch-blackout') ||
             p.classList.contains('glitch-depth') ||
-            p.classList.contains('glitch-dispersion') ||
             p.classList.contains('glitch-chars') ||
             p.classList.contains('glitch-chars-mid') ||
             p.classList.contains('glitch-chars-back') ||
@@ -95,15 +115,71 @@ function getRestoredText(span: Element): string {
     '';
 }
 
+function readTextCoverage(node: Node): TextCoverage {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return {
+      blackoutCharacters: 0,
+      totalCharacters: node.textContent?.length ?? 0,
+    };
+  }
+
+  if (!(node instanceof Element)) {
+    return { blackoutCharacters: 0, totalCharacters: 0 };
+  }
+
+  const tag = node.tagName.toLowerCase();
+  if (tag === 'pre' || tag === 'code') {
+    return { blackoutCharacters: 0, totalCharacters: 0 };
+  }
+
+  // Character groups contain three visual layers. Count their stored source
+  // segment once instead of treating the layers as three times the text.
+  if (node.classList.contains('glitch-chars-group')) {
+    return {
+      blackoutCharacters: 0,
+      totalCharacters: (node.getAttribute('data-original-text') ?? node.textContent ?? '').length,
+    };
+  }
+
+  if (
+    node.classList.contains('glitch-blackout') ||
+    node.classList.contains('glitch-depth')
+  ) {
+    const totalCharacters = node.textContent?.length ?? 0;
+    return { blackoutCharacters: totalCharacters, totalCharacters };
+  }
+
+  let blackoutCharacters = 0;
+  let totalCharacters = 0;
+  for (const child of node.childNodes) {
+    const coverage = readTextCoverage(child);
+    blackoutCharacters += coverage.blackoutCharacters;
+    totalCharacters += coverage.totalCharacters;
+  }
+  return { blackoutCharacters, totalCharacters };
+}
+
+// Measures logical text coverage rather than DOM nodes, so a sustained music
+// section can reserve a stable portion of a body for black blocks.
+export function getBlackoutCoverage(root: HTMLElement): BlackoutCoverage {
+  const coverage = readTextCoverage(root);
+  return {
+    ...coverage,
+    ratio:
+      coverage.totalCharacters > 0
+        ? coverage.blackoutCharacters / coverage.totalCharacters
+        : 0,
+  };
+}
+
 // Remove a random subset of existing glitch spans (without normalizing across
 // the whole tree, to keep behavior incremental). Returns how many were removed.
 export function removeSomeGlitchSpans(
   root: HTMLElement,
-  removeProbability: number
+  removeProbability: number,
+  group: GlitchSpanGroup = 'all',
 ): number {
-  const spans = root.querySelectorAll(
-    '.glitch-blackout, .glitch-depth, .glitch-dispersion, .glitch-chars-group',
-  );
+  const spans = root.querySelectorAll(GLITCH_SPAN_SELECTORS[group]);
   let removed = 0;
   for (let i = spans.length - 1; i >= 0; i--) {
     if (Math.random() >= removeProbability) continue;
@@ -160,35 +236,6 @@ export function applyBlackout(textNode: Text, start: number, length: number): vo
 // Recessed blackout: push the covered glyphs behind the text plane.
 export function applyDepthBlackout(textNode: Text, start: number, length: number): void {
   applyBlackoutVariant(textNode, start, length, 'glitch-depth', true);
-}
-
-// Preserve the source glyphs while adding a temporary RGB separation layer.
-export function applyColorDispersion(
-  textNode: Text,
-  start: number,
-  length: number,
-): void {
-  const text = textNode.textContent || '';
-  const parent = textNode.parentNode;
-  if (!parent || length <= 0 || start >= text.length) return;
-
-  const end = Math.min(start + length, text.length);
-  const before = text.slice(0, start);
-  const middle = text.slice(start, end);
-  const after = text.slice(end);
-  const fragment = document.createDocumentFragment();
-  if (before) fragment.appendChild(document.createTextNode(before));
-
-  const span = document.createElement('span');
-  const offset = (1.5 + Math.random() * 2.5).toFixed(1);
-  span.className = 'glitch-dispersion';
-  span.style.setProperty('--glitch-dispersion-offset', `${offset}px`);
-  span.style.setProperty('--glitch-dispersion-offset-neg', `-${offset}px`);
-  span.textContent = middle;
-  fragment.appendChild(span);
-
-  if (after) fragment.appendChild(document.createTextNode(after));
-  parent.replaceChild(fragment, textNode);
 }
 
 /**
@@ -323,9 +370,7 @@ export function applyGlitchCharsGroup(
 // Undo all glitch modifications and normalize adjacent text nodes. For groups,
 // getRestoredText extracts one layer to avoid restoring 3× duplicated text.
 export function restoreGlitchSpans(root: HTMLElement): void {
-  const spans = root.querySelectorAll(
-    '.glitch-blackout, .glitch-depth, .glitch-dispersion, .glitch-chars-group',
-  );
+  const spans = root.querySelectorAll(GLITCH_SPAN_SELECTORS.all);
   // Iterate in reverse to handle potential nesting safely
   for (let i = spans.length - 1; i >= 0; i--) {
     const span = spans[i];

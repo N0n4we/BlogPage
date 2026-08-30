@@ -1,9 +1,9 @@
 import {
   applyBlackout,
   applyGlitchCharsGroup,
-  applyColorDispersion,
   applyDepthBlackout,
   collectTextNodes,
+  getBlackoutCoverage,
   removeSomeGlitchSpans,
   restoreGlitchSpans,
 } from '../utils/glitch';
@@ -18,11 +18,70 @@ export interface MusicGlitchOptions {
   profile: RhythmProfile;
 }
 
-type FrequencyBand = 'bass' | 'macro';
+export interface MusicRhythmCalibration {
+  blackoutSustainThreshold: number;
+  blackoutPulseThreshold: number;
+  dispersionSustainThreshold: number;
+  heavyLowBlockThreshold: number;
+  heavyLowBlockRange: number;
+  heavyLoudnessThreshold: number;
+  heavyLoudnessRange: number;
+  bodyLoudnessThreshold: number;
+  bodyLoudnessRange: number;
+  bodyLowThreshold: number;
+  bodyLowRange: number;
+  bodyCoverageMinimum: number;
+  bodyCoverageRange: number;
+}
+
+// These values are calibrated from the bundled MP3s using a 1024-point
+// Blackman FFT, 40 Hz sampling, and the same analyser smoothing as the page.
+// The blackout gates use the smoothed macro bass envelope, not a one-frame
+// fine-band attack: that keeps large blocks on sustained climaxes instead of
+// isolated kicks. MIA is substantially hotter in the low end than iN_mY_BED,
+// so a shared gate would make one track permanently black or the other inert.
+export const MUSIC_RHYTHM_CALIBRATIONS = {
+  mia: {
+    blackoutSustainThreshold: 0.835,
+    blackoutPulseThreshold: 0.22,
+    dispersionSustainThreshold: 0.5,
+    heavyLowBlockThreshold: 0.815,
+    heavyLowBlockRange: 0.055,
+    heavyLoudnessThreshold: 0.735,
+    heavyLoudnessRange: 0.05,
+    bodyLoudnessThreshold: 0.725,
+    bodyLoudnessRange: 0.045,
+    bodyLowThreshold: 0.805,
+    bodyLowRange: 0.045,
+    bodyCoverageMinimum: 0.02,
+    bodyCoverageRange: 0.98,
+  },
+  inMyBed: {
+    blackoutSustainThreshold: 0.805,
+    blackoutPulseThreshold: 0.2,
+    dispersionSustainThreshold: 0.28,
+    heavyLowBlockThreshold: 0.785,
+    heavyLowBlockRange: 0.055,
+    heavyLoudnessThreshold: 0.67,
+    heavyLoudnessRange: 0.05,
+    bodyLoudnessThreshold: 0.66,
+    bodyLoudnessRange: 0.045,
+    bodyLowThreshold: 0.775,
+    bodyLowRange: 0.04,
+    bodyCoverageMinimum: 0.02,
+    bodyCoverageRange: 0.98,
+  },
+} as const satisfies Record<string, MusicRhythmCalibration>;
+
+const DEFAULT_RHYTHM_CALIBRATION: MusicRhythmCalibration =
+  MUSIC_RHYTHM_CALIBRATIONS.mia;
+
 type FineBand = 'sub' | 'bass' | 'lowMid' | 'mid' | 'presence' | 'high';
 type MusicState = 'idle' | 'paused' | 'playing' | 'unsupported' | 'reduced';
 type FrequencyRange = readonly [lowHz: number, highHz: number];
 type FineLevels = Record<FineBand, number>;
+type GlitchChannel = 'blackout' | 'dispersion';
+type BlackoutKind = 'blackout' | 'depth';
 
 interface RhythmSnapshot {
   bass: number;
@@ -39,29 +98,62 @@ interface RhythmSnapshot {
 interface RhythmTarget {
   element: HTMLElement;
   options: MusicGlitchOptions;
-  nextCycleAt: number;
+  nextCycleAt: Record<GlitchChannel, number>;
+  bodyCoverageFloor: number;
+  bodyCoverageUpdatedAt: number;
 }
 
 interface ProfileConfig {
-  band: FrequencyBand;
   gain: number;
   beatChance: number;
-  beatBurstEnabled: boolean;
   minDelay: number;
   maxDelay: number;
   cadenceResponse: number;
   refreshScale: number;
+  minimumDelayScale: number;
   maxMutations: number;
   maxLength: number;
+}
+
+interface ChannelSignal {
+  level: number;
+  sustainLevel: number;
+  pulse: number;
+}
+
+interface ChannelConfig {
+  minDelayScale: number;
+  maxDelayScale: number;
+  minimumDelay: number;
+  mutationScale: number;
+  sustainedActionFloor: number;
+  removalScale: number;
+}
+
+interface GlitchSpectrum {
+  flatBlackout: number;
+  depthBlackout: number;
+  low: number;
+  high: number;
 }
 
 const FFT_SIZE = 1024;
 const CSS_UPDATE_INTERVAL = 1000 / 40;
 const MIN_BEAT_INTERVAL = 140;
-const RHYTHM_PULSE_THRESHOLD = 0.12;
+const DISPERSION_PULSE_THRESHOLD = 0.12;
+const BODY_COVERAGE_DECAY_HALF_LIFE = 700;
+const ANALYSER_MIN_DECIBELS = -100;
+const ANALYSER_MAX_DECIBELS = 0;
+const BASS_FLOOR_RISE_RESPONSE = 0.008;
+const BASS_FLOOR_FALL_RESPONSE = 0.3;
+const CLIMAX_FLOOR_HOLD_RATIO = 0.9;
+const BODY_RHYTHM_GAIN = 0.85;
+const BASS_FLOOR_REFERENCE_MIN = 0.04;
+const BASS_FLOOR_REFERENCE_MAX = 0.6;
+const BLACKOUT_REMOVAL_REDUCTION = 0.55;
 
 // These boundaries separate the actual DOM effects: sub/kick cuts, bass depth,
-// vocal/synth symbol corruption, and high-frequency chromatic dispersion.
+// and high-frequency chromatic glyph corruption.
 const MACRO_BANDS = {
   bass: [20, 250],
   mid: [250, 2000],
@@ -87,15 +179,33 @@ const FINE_RISE_GAIN: Record<FineBand, number> = {
   high: 6.2,
 };
 
-type GlitchKind = 'blackout' | 'depth' | 'dispersion' | 'symbols';
+const LOW_BLACKOUT_BANDS = ['bass', 'lowMid'] as const satisfies readonly FineBand[];
+const HIGH_DISPERSION_BANDS = ['presence', 'high'] as const satisfies readonly FineBand[];
+const GLITCH_CHANNELS: readonly GlitchChannel[] = ['blackout', 'dispersion'];
 
-const GLITCH_KIND_BANDS: Record<GlitchKind, readonly FineBand[]> = {
-  blackout: ['sub'],
-  depth: ['bass', 'lowMid'],
-  dispersion: ['presence', 'high'],
-  symbols: ['mid'],
+const CHANNEL_CONFIG: Record<GlitchChannel, ChannelConfig> = {
+  // Low-end blocks should refresh quickly enough to track the groove while
+  // retaining their coverage during sustained drops.
+  blackout: {
+    minDelayScale: 0.7,
+    maxDelayScale: 0.82,
+    minimumDelay: 80,
+    mutationScale: 0.85,
+    sustainedActionFloor: 0.52,
+    removalScale: 0.3,
+  },
+  // High frequencies have their own faster cadence. They no longer compete
+  // with black blocks for a single random mutation slot. At a bright peak,
+  // create larger glyph objects quickly instead of a few timid replacements.
+  dispersion: {
+    minDelayScale: 0.54,
+    maxDelayScale: 0.64,
+    minimumDelay: 60,
+    mutationScale: 1,
+    sustainedActionFloor: 0.72,
+    removalScale: 0.42,
+  },
 };
-const GLITCH_KINDS: readonly GlitchKind[] = ['blackout', 'depth', 'dispersion', 'symbols'];
 
 function createFineLevels(): FineLevels {
   return {
@@ -121,50 +231,46 @@ const INTENSITY_CONFIG: Record<GlitchIntensity, { actionProbability: number; rem
 
 const PROFILE_CONFIG: Record<RhythmProfile, ProfileConfig> = {
   logo: {
-    band: 'bass',
     gain: 1.32,
     beatChance: 0.98,
-    beatBurstEnabled: true,
     minDelay: 90,
     maxDelay: 260,
     cadenceResponse: 2.4,
     refreshScale: 1,
+    minimumDelayScale: 1,
     maxMutations: 1,
     maxLength: 4,
   },
   title: {
-    band: 'macro',
     gain: 1.3,
     beatChance: 0.9,
-    beatBurstEnabled: true,
     minDelay: 110,
     maxDelay: 330,
     cadenceResponse: 2.2,
     refreshScale: 1,
+    minimumDelayScale: 1,
     maxMutations: 1,
     maxLength: 5,
   },
   meta: {
-    band: 'macro',
     gain: 1.42,
     beatChance: 0.72,
-    beatBurstEnabled: true,
     minDelay: 80,
     maxDelay: 230,
     cadenceResponse: 2,
     refreshScale: 1,
+    minimumDelayScale: 1,
     maxMutations: 1,
     maxLength: 2,
   },
   body: {
-    band: 'macro',
     gain: 1.22,
     beatChance: 1,
-    beatBurstEnabled: true,
     minDelay: 150,
     maxDelay: 360,
     cadenceResponse: 8,
     refreshScale: 0.9,
+    minimumDelayScale: 0.8,
     maxMutations: 6,
     maxLength: 12,
   },
@@ -195,6 +301,22 @@ interface WebkitAudioWindow extends Window {
 
 function clamp(value: number, min = 0, max = 1): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function getBlackoutRemovalScale(
+  channel: GlitchChannel,
+  bassFloor: number,
+): number {
+  if (channel !== 'blackout') return 1;
+
+  // A higher adaptive threshold means the low end is already carrying a
+  // sustained load, so preserve existing black blocks instead of clearing
+  // them as aggressively on every cycle.
+  const thresholdPressure = clamp(
+    (bassFloor - BASS_FLOOR_REFERENCE_MIN) /
+      (BASS_FLOOR_REFERENCE_MAX - BASS_FLOOR_REFERENCE_MIN),
+  );
+  return 1 - thresholdPressure * BLACKOUT_REMOVAL_REDUCTION;
 }
 
 function readBand(
@@ -231,34 +353,122 @@ function sampleAcrossText<T>(items: readonly T[], count: number): T[] {
   return selected;
 }
 
-function pickGlitchKind(snapshot: RhythmSnapshot): GlitchKind {
-  let totalWeight = 0;
-  let strongestKind = GLITCH_KINDS[0];
-  let strongestWeight = 0;
-  const weights = GLITCH_KINDS.map((kind) => {
-    const weight = Math.max(
-      ...GLITCH_KIND_BANDS[kind].map((band) =>
-        // Spectral rises lead the decision; the local envelope only keeps a
-        // sustained instrument from falling back to the first glitch kind.
-        snapshot.finePulse[band] * 0.84 + snapshot.fine[band] * 0.16,
-      ),
-    );
-    if (weight > strongestWeight) {
-      strongestKind = kind;
-      strongestWeight = weight;
+function readFineSignal(snapshot: RhythmSnapshot, bands: readonly FineBand[]): number {
+  return Math.max(
+    ...bands.map((band) =>
+      // Short attacks should decide the next mutation. A little envelope is
+      // retained so sustained notes do not make the ratio flicker every frame.
+      snapshot.finePulse[band] * 0.82 + snapshot.fine[band] * 0.18,
+    ),
+  );
+}
+
+function getGlitchSpectrum(snapshot: RhythmSnapshot): GlitchSpectrum {
+  const flatBlackout = readFineSignal(snapshot, ['sub']);
+  const depthBlackout = readFineSignal(snapshot, LOW_BLACKOUT_BANDS);
+  const high = readFineSignal(snapshot, HIGH_DISPERSION_BANDS);
+  const low = Math.max(flatBlackout, depthBlackout);
+
+  return {
+    flatBlackout,
+    depthBlackout,
+    low,
+    high,
+  };
+}
+
+function pickBlackoutKind(spectrum: GlitchSpectrum): BlackoutKind {
+  // Both variants are visually black blocks. Sub/kick favors the flat cutout;
+  // bass and low-mid material favors the recessed, heavier version.
+  return Math.random() * (spectrum.flatBlackout + spectrum.depthBlackout) < spectrum.flatBlackout
+    ? 'blackout'
+    : 'depth';
+}
+
+function getChannelSignal(
+  channel: GlitchChannel,
+  snapshot: RhythmSnapshot,
+  spectrum: GlitchSpectrum,
+): ChannelSignal {
+  switch (channel) {
+    case 'blackout':
+      return {
+        level: clamp(snapshot.bass * 0.78 + spectrum.low * 0.42),
+        // A short kick still raises mutation intensity through `level` and
+        // `pulse`, but only the macro envelope may open the sustained gate.
+        sustainLevel: snapshot.bass,
+        pulse: Math.max(
+          snapshot.bassPulse,
+          snapshot.finePulse.sub,
+          snapshot.finePulse.bass,
+          snapshot.finePulse.lowMid,
+          snapshot.beat,
+        ),
+      };
+    case 'dispersion':
+    {
+      const level = clamp(snapshot.high * 0.78 + spectrum.high * 0.42);
+      return {
+        level,
+        sustainLevel: level,
+        pulse: Math.max(
+          snapshot.highPulse,
+          snapshot.finePulse.presence,
+          snapshot.finePulse.high,
+        ),
+      };
     }
-    totalWeight += weight;
-    return weight;
-  });
-
-  if (totalWeight <= 0) return strongestKind;
-
-  let cursor = Math.random() * totalWeight;
-  for (let index = 0; index < GLITCH_KINDS.length; index += 1) {
-    cursor -= weights[index];
-    if (cursor <= 0) return GLITCH_KINDS[index];
   }
-  return strongestKind;
+}
+
+function getOverallLoudness(snapshot: RhythmSnapshot): number {
+  return clamp(snapshot.bass * 0.56 + snapshot.mid * 0.28 + snapshot.high * 0.16);
+}
+
+function getLargeBlackoutPressure(
+  snapshot: RhythmSnapshot,
+  calibration: MusicRhythmCalibration,
+): number {
+  // Do not let a single sub/bass transient decide block size. Large blocks need
+  // both a sustained low-end envelope and a loud section, which is the shape
+  // of the surveyed climaxes in both bundled tracks.
+  const lowPressure = clamp(
+    (snapshot.bass - calibration.heavyLowBlockThreshold) /
+      calibration.heavyLowBlockRange,
+  );
+  const loudnessPressure = clamp(
+    (getOverallLoudness(snapshot) - calibration.heavyLoudnessThreshold) /
+      calibration.heavyLoudnessRange,
+  );
+
+  // Bright percussion must not suppress a genuinely low-heavy climax. The
+  // low gate already rejects a bright-but-light section, so take the weaker
+  // of the two sustained pressures instead of penalizing high frequencies.
+  return Math.min(lowPressure, loudnessPressure);
+}
+
+function getBodyBlackoutCoverageFloor(
+  snapshot: RhythmSnapshot,
+  calibration: MusicRhythmCalibration,
+): number {
+  const overallLoudness = getOverallLoudness(snapshot);
+  const loudnessPressure = clamp(
+    (overallLoudness - calibration.bodyLoudnessThreshold) /
+      calibration.bodyLoudnessRange,
+  );
+  const lowPressure = clamp(
+    (snapshot.bass - calibration.bodyLowThreshold) / calibration.bodyLowRange,
+  );
+  const coveragePressure = Math.min(loudnessPressure, lowPressure);
+
+  // Make a real climax much more destructive than the lead-in: the lower end
+  // of the calibrated range only takes a small slice, while a fully sustained
+  // peak can reserve the entire visible body. This is a coverage floor, not
+  // another transient burst, so it remains in place between individual hits.
+  const shapedPressure = coveragePressure ** 1.65;
+  return coveragePressure > 0
+    ? calibration.bodyCoverageMinimum + shapedPressure * calibration.bodyCoverageRange
+    : 0;
 }
 
 /**
@@ -295,12 +505,18 @@ class MusicRhythmController {
   private finePulse = createFineLevels();
   private bassFloor = 0.04;
   private beatPulse = 0;
+  private calibration: MusicRhythmCalibration = DEFAULT_RHYTHM_CALIBRATION;
 
   registerTarget(element: HTMLElement): () => void {
     const target: RhythmTarget = {
       element,
       options: { ...DISABLED_TARGET_OPTIONS },
-      nextCycleAt: 0,
+      nextCycleAt: {
+        blackout: 0,
+        dispersion: 0,
+      },
+      bodyCoverageFloor: 0,
+      bodyCoverageUpdatedAt: 0,
     };
     this.targets.set(element, target);
     this.observe(element);
@@ -334,18 +550,30 @@ class MusicRhythmController {
     element.classList.add(`music-glitch-target--${options.profile}`);
     element.dataset.musicRhythmProfile = options.profile;
 
-    if (!options.enabled) restoreGlitchSpans(element);
+    if (!options.enabled) {
+      target.bodyCoverageFloor = 0;
+      target.bodyCoverageUpdatedAt = 0;
+      restoreGlitchSpans(element);
+    }
   }
 
-  connect(audioElement: HTMLAudioElement | null): void {
+  connect(
+    audioElement: HTMLAudioElement | null,
+    calibration: MusicRhythmCalibration = DEFAULT_RHYTHM_CALIBRATION,
+  ): void {
     if (!audioElement) {
       this.disconnect();
       return;
     }
 
-    if (audioElement === this.audioElement) return;
+    if (audioElement === this.audioElement) {
+      this.calibration = calibration;
+      this.applyAnalyserRange();
+      return;
+    }
 
     this.disconnect();
+    this.calibration = calibration;
     if (typeof window === 'undefined') return;
 
     this.ensureDocumentListeners();
@@ -369,6 +597,7 @@ class MusicRhythmController {
       const analyser = context.createAnalyser();
       this.analyserNode = analyser;
       analyser.fftSize = FFT_SIZE;
+      this.applyAnalyserRange();
       // Keep kick transients readable without making the text jitter at the
       // analyser frame rate.
       analyser.smoothingTimeConstant = 0.64;
@@ -475,6 +704,16 @@ class MusicRhythmController {
     }
   };
 
+  private applyAnalyserRange(): void {
+    if (!this.analyserNode) return;
+
+    // The browser defaults to maxDecibels = -30. Both bundled masters sit
+    // above that through much of their runtime, which collapses the analyser
+    // to 1.0 and makes every low-frequency gate look like a climax.
+    this.analyserNode.minDecibels = ANALYSER_MIN_DECIBELS;
+    this.analyserNode.maxDecibels = ANALYSER_MAX_DECIBELS;
+  }
+
   private teardownAudioGraph(): void {
     if (this.audioElement) {
       this.audioElement.removeEventListener('play', this.resumeAudioContext);
@@ -554,7 +793,20 @@ class MusicRhythmController {
       this.fineEnvelope[band] += fineDelta * (fineDelta > 0 ? 0.3 : 0.11);
       this.finePulse[band] = Math.max(fineRise, this.finePulse[band] * pulseDecay);
     }
-    this.bassFloor += (rawBass - this.bassFloor) * 0.018;
+    // Let the adaptive beat baseline follow quieter passages, but do not let
+    // a sustained climax raise it underneath the music. Only downward motion
+    // is allowed while the calibrated low-end climax gate is active, so the
+    // middle of a climax keeps the same beat sensitivity as its entrance.
+    const isSustainedClimax =
+      this.bass >= this.calibration.blackoutSustainThreshold * CLIMAX_FLOOR_HOLD_RATIO;
+    const bassFloorTarget = isSustainedClimax
+      ? Math.min(rawBass, this.bassFloor)
+      : rawBass;
+    const bassFloorResponse =
+      bassFloorTarget < this.bassFloor
+        ? BASS_FLOOR_FALL_RESPONSE
+        : BASS_FLOOR_RISE_RESPONSE;
+    this.bassFloor += (bassFloorTarget - this.bassFloor) * bassFloorResponse;
 
     const beatThreshold = Math.max(0.075, this.bassFloor * 1.34);
     const isBeat =
@@ -590,6 +842,8 @@ class MusicRhythmController {
   };
 
   private runGlitchCycles(snapshot: RhythmSnapshot, now: number): void {
+    const spectrum = getGlitchSpectrum(snapshot);
+
     for (const target of this.targets.values()) {
       if (
         !target.options.enabled ||
@@ -601,112 +855,363 @@ class MusicRhythmController {
       }
 
       const profile = PROFILE_CONFIG[target.options.profile];
-      const pulse = this.profilePulse(profile.band, snapshot);
-      const level = clamp(
-        (pulse * 1.28 + snapshot.beat * 0.72) * profile.gain,
-      );
-      // A rhythmic hit can be a bass beat or a strong rise in any macro band.
-      // Let the pulse decay window produce a few quick refreshes instead of
-      // waiting for the target's ordinary cadence timer.
-      const isFreshRhythm =
-        snapshot.beat >= 0.72 || pulse >= RHYTHM_PULSE_THRESHOLD;
-      const beatBurst =
-        profile.beatBurstEnabled &&
-        isFreshRhythm &&
-        Math.random() < profile.beatChance;
-
-      if (!beatBurst && now < target.nextCycleAt) continue;
-
-      const cadence = profile.minDelay + Math.random() * (profile.maxDelay - profile.minDelay);
-      target.nextCycleAt = now +
-        (cadence * profile.refreshScale) /
-        (1 + level * profile.cadenceResponse);
-
-      if (!beatBurst && Math.random() > 0.18 + level * 0.82) continue;
-
-      this.mutateTarget(target, profile, level, beatBurst, snapshot);
+      const bodyCoverageFloor =
+        target.options.profile === 'body'
+          ? this.getHeldBodyBlackoutCoverageFloor(target, snapshot, now)
+          : 0;
+      for (const channel of GLITCH_CHANNELS) {
+        const blackoutCoverageFloor =
+          channel === 'blackout' && target.options.profile === 'body'
+            ? bodyCoverageFloor
+            : 0;
+        this.runGlitchChannel(
+          target,
+          profile,
+          channel,
+          getChannelSignal(channel, snapshot, spectrum),
+          snapshot,
+          spectrum,
+          blackoutCoverageFloor,
+          now,
+        );
+      }
     }
+  }
+
+  private getHeldBodyBlackoutCoverageFloor(
+    target: RhythmTarget,
+    snapshot: RhythmSnapshot,
+    now: number,
+  ): number {
+    const instantFloor = getBodyBlackoutCoverageFloor(snapshot, this.calibration);
+    const elapsed = Math.max(0, now - target.bodyCoverageUpdatedAt);
+    const decayedFloor =
+      target.bodyCoverageFloor *
+      Math.pow(0.5, elapsed / BODY_COVERAGE_DECAY_HALF_LIFE);
+    const heldFloor = Math.max(instantFloor, decayedFloor);
+
+    target.bodyCoverageFloor = heldFloor;
+    target.bodyCoverageUpdatedAt = now;
+    return heldFloor;
+  }
+
+  private runGlitchChannel(
+    target: RhythmTarget,
+    profile: ProfileConfig,
+    channel: GlitchChannel,
+    signal: ChannelSignal,
+    snapshot: RhythmSnapshot,
+    spectrum: GlitchSpectrum,
+    blackoutCoverageFloor: number,
+    now: number,
+  ): void {
+    const config = CHANNEL_CONFIG[channel];
+    const level = clamp(signal.level * profile.gain);
+    const sustainThreshold =
+      channel === 'blackout'
+        ? this.calibration.blackoutSustainThreshold
+        : this.calibration.dispersionSustainThreshold;
+    const pulseThreshold =
+      channel === 'blackout'
+        ? this.calibration.blackoutPulseThreshold
+        : DISPERSION_PULSE_THRESHOLD;
+    // Profile gain controls visual density after a channel is open. It must
+    // not alter the audio threshold itself, otherwise the same track can be
+    // permanently "heavy" for one text profile and quiet for another.
+    const hasSustainedSignal = signal.sustainLevel >= sustainThreshold;
+    const hasAttack = signal.pulse >= pulseThreshold;
+
+    const mustMaintainCoverage =
+      blackoutCoverageFloor > 0 &&
+      getBlackoutCoverage(target.element).ratio < blackoutCoverageFloor;
+
+    if (!hasSustainedSignal && !hasAttack && !mustMaintainCoverage) {
+      this.releaseInactiveChannel(target, channel, config, now);
+      return;
+    }
+    if (now < target.nextCycleAt[channel]) return;
+
+    const cadence =
+      profile.minDelay * config.minDelayScale +
+      Math.random() * (profile.maxDelay * config.maxDelayScale - profile.minDelay * config.minDelayScale);
+    target.nextCycleAt[channel] = now + Math.max(
+      config.minimumDelay * profile.minimumDelayScale,
+      (cadence * profile.refreshScale) / (1 + level * profile.cadenceResponse),
+    );
+
+    const burst = hasAttack && Math.random() < profile.beatChance;
+    const sustainedActionChance =
+      config.sustainedActionFloor + level * (1 - config.sustainedActionFloor);
+    if (!burst && !mustMaintainCoverage && Math.random() > sustainedActionChance) return;
+
+    this.mutateTarget(
+      target,
+      profile,
+      channel,
+      level,
+      burst,
+      snapshot,
+      spectrum,
+      blackoutCoverageFloor,
+    );
+  }
+
+  private releaseInactiveChannel(
+    target: RhythmTarget,
+    channel: GlitchChannel,
+    config: ChannelConfig,
+    now: number,
+  ): void {
+    if (now < target.nextCycleAt[channel]) return;
+
+    const intensity = INTENSITY_CONFIG[target.options.intensity];
+    const adaptiveRemovalScale = getBlackoutRemovalScale(channel, this.bassFloor);
+    // Effects otherwise remain in the DOM until the next low/high hit, which
+    // makes a block generated at one beat look as though it belongs to a later
+    // section. Fade only this channel's spans between passages.
+    const releaseProbability = clamp(
+      0.34 + intensity.removeProbability * config.removalScale * adaptiveRemovalScale,
+      channel === 'blackout' ? 0.3 : 0.38,
+      0.62,
+    );
+    removeSomeGlitchSpans(target.element, releaseProbability, channel);
+    target.nextCycleAt[channel] = now + Math.max(180, config.minimumDelay * 1.5);
   }
 
   private mutateTarget(
     target: RhythmTarget,
     profile: ProfileConfig,
+    channel: GlitchChannel,
     level: number,
-    beatBurst: boolean,
+    burst: boolean,
     snapshot: RhythmSnapshot,
+    spectrum: GlitchSpectrum,
+    blackoutCoverageFloor: number,
   ): void {
+    const channelConfig = CHANNEL_CONFIG[channel];
     const intensity = INTENSITY_CONFIG[target.options.intensity];
+    const adaptiveRemovalScale = getBlackoutRemovalScale(channel, this.bassFloor);
     const actionProbability = clamp(
-      intensity.actionProbability * (0.58 + level * 1.0 + (beatBurst ? 0.4 : 0)),
+      intensity.actionProbability *
+        channelConfig.mutationScale *
+        (0.64 + level * 0.8 + (burst ? 0.22 : 0)),
     );
-    const removeProbability = clamp(
-      intensity.removeProbability * (0.55 + level * 0.45) +
-        (target.options.profile === 'body' ? level * 0.45 : 0),
-    );
+    const coverageBefore =
+      channel === 'blackout' && target.options.profile === 'body'
+        ? getBlackoutCoverage(target.element)
+        : null;
+    const removeProbability =
+      coverageBefore && coverageBefore.ratio < blackoutCoverageFloor
+        ? 0
+        : clamp(
+          intensity.removeProbability *
+            channelConfig.removalScale *
+            adaptiveRemovalScale *
+            (0.45 + level * 0.35) +
+            (target.options.profile === 'body' ? level * 0.18 : 0),
+        );
 
-    removeSomeGlitchSpans(target.element, removeProbability);
+    // Each channel only refreshes its own spans. High-frequency glyph
+    // corruption therefore cannot clear low-end black blocks, and vice versa.
+    removeSomeGlitchSpans(target.element, removeProbability, channel);
 
     const candidates = collectTextNodes(target.element).filter((textNode) => {
       const text = textNode.textContent ?? '';
       return text.trim().length > 0;
     });
-    if (candidates.length === 0) return;
-
-    const expectedMutations = profile.maxMutations * actionProbability;
+    const largeBlackoutPressure =
+      channel === 'blackout'
+        ? getLargeBlackoutPressure(snapshot, this.calibration)
+        : 0;
+    // Full-body coverage is reserved for a real low-end attack at the top of
+    // the calibrated range. A merely loud, sustained master uses the smaller
+    // coverage floor below instead of repeatedly consuming the whole body.
     const peakCoverage =
-      target.options.profile === 'body' ? clamp((level - 0.25) / 0.75) : 0;
-    // At a real peak, readability is intentionally sacrificed: cover the
-    // complete eligible text set so a long post does not look mostly intact.
-    const coverageMutations =
-      peakCoverage > 0 ? Math.ceil(candidates.length * peakCoverage) : 0;
-    const mutationCount = Math.min(
-      candidates.length,
-      Math.max(
+      channel === 'blackout' && target.options.profile === 'body' && burst
+        ? clamp((largeBlackoutPressure - 0.5) / 0.5)
+        : 0;
+    const largeBlackoutProfileGain =
+      target.options.profile === 'body' ? 1 : 0.45;
+
+    if (candidates.length > 0) {
+      const mutationBudget = Math.max(
         1,
-        coverageMutations ||
-          Math.floor(expectedMutations) +
-            (Math.random() < expectedMutations % 1 ? 1 : 0),
-      ),
-    );
-    for (const textNode of sampleAcrossText(candidates, mutationCount)) {
-      const text = textNode.textContent ?? '';
-
-      const maxLength = Math.min(
-        text.length,
-        peakCoverage > 0
-          ? Math.max(1, Math.ceil(text.length * (0.25 + peakCoverage * 0.75)))
-          : Math.max(1, Math.ceil(profile.maxLength * (beatBurst ? 1.2 : 1))),
+        Math.ceil(profile.maxMutations * channelConfig.mutationScale),
       );
-      const length =
-        peakCoverage >= 0.9
-          ? text.length
-          : Math.min(Math.ceil(Math.random() * maxLength), text.length);
-      const start = Math.floor(Math.random() * (text.length - length + 1));
-      const kind = pickGlitchKind(snapshot);
+      const expectedMutations = mutationBudget * actionProbability;
+      // At a real low-end peak, readability is intentionally sacrificed: cover
+      // the complete eligible text set so a long post does not look mostly intact.
+      const coverageMutations =
+        peakCoverage > 0 ? Math.ceil(candidates.length * peakCoverage) : 0;
+      const mutationCount = Math.min(
+        candidates.length,
+        Math.max(
+          1,
+          coverageMutations ||
+            Math.floor(expectedMutations) +
+              (Math.random() < expectedMutations % 1 ? 1 : 0),
+        ),
+      );
+      for (const textNode of sampleAcrossText(candidates, mutationCount)) {
+        const text = textNode.textContent ?? '';
+        const isDispersion = channel === 'dispersion';
+        const isLargeBlackout =
+          channel === 'blackout' &&
+          Math.random() < largeBlackoutPressure * largeBlackoutProfileGain;
 
-      switch (kind) {
-        case 'blackout':
-          applyBlackout(textNode, start, length);
-          break;
-        case 'depth':
-          applyDepthBlackout(textNode, start, length);
-          break;
-        case 'dispersion':
-          applyColorDispersion(textNode, start, length);
-          break;
-        case 'symbols':
-          applyGlitchCharsGroup(textNode, start, length);
-          break;
+        const regularLengthScale = isDispersion
+          ? 1.35 + level * 0.85 + (burst ? 0.25 : 0)
+          : burst
+            ? 1.2
+            : 1;
+        const regularMaxLength = Math.min(
+          text.length,
+          peakCoverage > 0
+            ? Math.max(1, Math.ceil(text.length * (0.25 + peakCoverage * 0.75)))
+            : Math.max(1, Math.ceil(profile.maxLength * regularLengthScale)),
+        );
+        // On a heavy low-end passage, selected blackouts become actual blocks:
+        // their span starts at a sizeable fraction of the text node, rather than
+        // merely increasing the chance of a normal short blackout.
+        const maxLength = isLargeBlackout
+          ? Math.max(
+            regularMaxLength,
+            Math.ceil(text.length * (0.42 + largeBlackoutPressure * 0.5)),
+          )
+          : regularMaxLength;
+        const minLength = isLargeBlackout
+          ? Math.min(
+            maxLength,
+            Math.ceil(maxLength * (0.48 + largeBlackoutPressure * 0.32)),
+          )
+          : isDispersion
+            ? Math.min(
+              maxLength,
+              Math.max(2, Math.ceil(maxLength * (0.3 + level * 0.25))),
+            )
+          : 1;
+        const length =
+          peakCoverage >= 0.9
+            ? text.length
+            : Math.min(
+              minLength + Math.floor(Math.random() * (maxLength - minLength + 1)),
+              text.length,
+            );
+        const start = Math.floor(Math.random() * (text.length - length + 1));
+
+        switch (channel) {
+          case 'blackout':
+            if (pickBlackoutKind(spectrum) === 'blackout') {
+              applyBlackout(textNode, start, length);
+            } else {
+              applyDepthBlackout(textNode, start, length);
+            }
+            break;
+          case 'dispersion':
+            applyGlitchCharsGroup(textNode, start, length);
+            break;
+        }
       }
+    }
+
+    if (
+      channel === 'blackout' &&
+      target.options.profile === 'body' &&
+      blackoutCoverageFloor > 0
+    ) {
+      this.maintainBodyBlackoutCoverage(
+        target.element,
+        spectrum,
+        blackoutCoverageFloor,
+        largeBlackoutPressure,
+      );
     }
   }
 
-  private profilePulse(band: FrequencyBand, snapshot: RhythmSnapshot): number {
-    switch (band) {
-      case 'bass':
-        return snapshot.bassPulse;
-      case 'macro':
-        return Math.max(snapshot.bassPulse, snapshot.midPulse, snapshot.highPulse);
+  private maintainBodyBlackoutCoverage(
+    element: HTMLElement,
+    spectrum: GlitchSpectrum,
+    blackoutCoverageFloor: number,
+    largeBlackoutPressure: number,
+  ): void {
+    const coverage = getBlackoutCoverage(element);
+    if (
+      coverage.totalCharacters === 0 ||
+      coverage.ratio >= blackoutCoverageFloor
+    ) {
+      return;
+    }
+
+    let missingCharacters = Math.ceil(
+      coverage.totalCharacters * blackoutCoverageFloor - coverage.blackoutCharacters,
+    );
+    let candidates = collectTextNodes(element).filter((textNode) => {
+      const text = textNode.textContent ?? '';
+      return text.trim().length > 0;
+    });
+
+    const availableCharacters = candidates.reduce(
+      (total, textNode) => total + (textNode.textContent?.length ?? 0),
+      0,
+    );
+    if (availableCharacters < missingCharacters) {
+      // Preserve the independent channels in normal operation, but when the
+      // body floor cannot be met, free enough high-frequency glyph groups for
+      // the low-end channel to reserve its promised share of the text.
+      const releaseProbability = clamp(
+        (missingCharacters - availableCharacters) /
+          Math.max(1, coverage.totalCharacters - coverage.blackoutCharacters),
+        0.35,
+        0.85,
+      );
+      removeSomeGlitchSpans(element, releaseProbability, 'dispersion');
+      candidates = collectTextNodes(element).filter((textNode) => {
+        const text = textNode.textContent ?? '';
+        return text.trim().length > 0;
+      });
+    }
+
+    if (candidates.length === 0 || missingCharacters <= 0) return;
+
+    const averageLength = candidates.reduce(
+      (total, textNode) => total + (textNode.textContent?.length ?? 0),
+      0,
+    ) / candidates.length;
+    const expectedBlockLength = averageLength * (0.36 + largeBlackoutPressure * 0.42);
+    const selectedCount = Math.min(
+      candidates.length,
+      Math.max(1, Math.ceil(missingCharacters / Math.max(1, expectedBlockLength))),
+    );
+    const selected = sampleAcrossText(candidates, selectedCount);
+    const selectedSet = new Set(selected);
+    const orderedCandidates = [
+      ...selected,
+      ...candidates.filter((textNode) => !selectedSet.has(textNode)),
+    ];
+
+    for (const textNode of orderedCandidates) {
+      if (missingCharacters <= 0) break;
+      const text = textNode.textContent ?? '';
+      const maxLength = Math.min(
+        text.length,
+        Math.max(1, Math.ceil(text.length * (0.42 + largeBlackoutPressure * 0.5))),
+      );
+      const minLength = Math.min(
+        maxLength,
+        Math.max(1, Math.ceil(maxLength * (0.48 + largeBlackoutPressure * 0.32))),
+      );
+      const length = Math.min(
+        text.length,
+        Math.max(minLength, Math.min(missingCharacters, maxLength)),
+      );
+      const start = Math.floor(Math.random() * (text.length - length + 1));
+
+      if (pickBlackoutKind(spectrum) === 'blackout') {
+        applyBlackout(textNode, start, length);
+      } else {
+        applyDepthBlackout(textNode, start, length);
+      }
+      missingCharacters -= length;
     }
   }
 
@@ -752,6 +1257,10 @@ class MusicRhythmController {
     this.finePulse = createFineLevels();
     this.bassFloor = 0.04;
     this.beatPulse = 0;
+    for (const target of this.targets.values()) {
+      target.bodyCoverageFloor = 0;
+      target.bodyCoverageUpdatedAt = 0;
+    }
   }
 
   private writeCssVariables(snapshot: RhythmSnapshot): void {
@@ -776,10 +1285,14 @@ class MusicRhythmController {
     root.style.setProperty('--music-mid', snapshot.mid.toFixed(3));
     root.style.setProperty('--music-high', snapshot.high.toFixed(3));
     root.style.setProperty('--music-pulse', snapshot.beat.toFixed(3));
-    root.style.setProperty('--music-chroma', (0.18 + reaction * 0.8).toFixed(3));
     root.style.setProperty('--music-glitch-front-duration', `${Math.round(340 - reaction * 100)}ms`);
     root.style.setProperty('--music-glitch-mid-duration', `${Math.round(500 - reaction * 140)}ms`);
     root.style.setProperty('--music-glitch-back-duration', `${Math.round(760 - reaction * 220)}ms`);
+
+    const bodyScale = 1 + reaction * BODY_RHYTHM_GAIN * 0.018;
+    const bodyLetterSpacing = reaction * BODY_RHYTHM_GAIN * 0.022;
+    root.style.setProperty('--music-body-rhythm-scale', bodyScale.toFixed(4));
+    root.style.setProperty('--music-body-rhythm-letter', `${bodyLetterSpacing.toFixed(4)}em`);
 
     const bodyReaction = clamp(macroPulse * 1.45 + snapshot.beat * 1.05);
     root.style.setProperty('--music-body-glitch-front-duration', `${Math.round(310 - bodyReaction * 250)}ms`);
@@ -787,18 +1300,9 @@ class MusicRhythmController {
     root.style.setProperty('--music-body-glitch-back-duration', `${Math.round(700 - bodyReaction * 520)}ms`);
 
     for (const [name, gain] of tiers) {
-      const shift = reaction * gain * 4.8;
-      const verticalShift = (
-        snapshot.highPulse * 0.55 +
-        Math.max(snapshot.finePulse.presence, snapshot.finePulse.high) * 0.25 +
-        snapshot.beat * 0.7
-      ) * gain * 1.8;
       const scale = 1 + reaction * gain * 0.018;
       const letterSpacing = reaction * gain * 0.022;
 
-      root.style.setProperty(`--music-shift-${name}`, `${shift.toFixed(2)}px`);
-      root.style.setProperty(`--music-shift-${name}-neg`, `${(-shift).toFixed(2)}px`);
-      root.style.setProperty(`--music-shift-y-${name}`, `${verticalShift.toFixed(2)}px`);
       root.style.setProperty(`--music-scale-${name}`, scale.toFixed(4));
       root.style.setProperty(`--music-letter-${name}`, `${letterSpacing.toFixed(4)}em`);
     }

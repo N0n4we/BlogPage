@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import APlayer from 'aplayer';
-import { musicRhythm } from '../modules/musicRhythm';
+import {
+  MUSIC_RHYTHM_CALIBRATIONS,
+  musicRhythm,
+  type MusicRhythmCalibration,
+} from '../modules/musicRhythm';
 
 interface Song {
   name: string;
   artist: string;
   url: string;
   cover: string;
+  rhythmCalibration: MusicRhythmCalibration;
 }
 
 const assetUrl = (path: string) =>
@@ -18,24 +23,29 @@ const songs: Song[] = [
     artist: 'raiwinnn',
     url: assetUrl('songs/raiwinnn - MIA.mp3'),
     cover: assetUrl('songs/raiwinnn - MIA.jpg'),
+    rhythmCalibration: MUSIC_RHYTHM_CALIBRATIONS.mia,
   },
   {
     name: 'iN_mY_BED',
     artist: 'vulx',
     url: assetUrl('songs/vulx - iN_mY_BED.mp3'),
     cover: assetUrl('songs/vulx - iN_mY_BED.jpg'),
+    rhythmCalibration: MUSIC_RHYTHM_CALIBRATIONS.inMyBed,
   },
 ];
 
 export default function MusicPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const rhythmCalibrationRef = useRef<MusicRhythmCalibration>(
+    MUSIC_RHYTHM_CALIBRATIONS.mia,
+  );
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // No visible visualizer remains. The controller keeps a single, lightweight
   // analyser only to drive page-wide text rhythm.
   useEffect(() => {
-    musicRhythm.connect(audioElement);
+    musicRhythm.connect(audioElement, rhythmCalibrationRef.current);
     return () => musicRhythm.disconnect(audioElement);
   }, [audioElement]);
 
@@ -47,6 +57,7 @@ export default function MusicPlayer() {
     if (!containerRef.current) return;
 
     const randomSong = songs[Math.floor(Math.random() * songs.length)];
+    rhythmCalibrationRef.current = randomSong.rhythmCalibration;
 
     const ap = new APlayer({
       container: containerRef.current,

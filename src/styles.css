@@ -85,33 +85,22 @@
   --music-mid: 0;
   --music-high: 0;
   --music-pulse: 0;
-  --music-chroma: 0;
   --music-glitch-front-duration: 340ms;
   --music-glitch-mid-duration: 500ms;
   --music-glitch-back-duration: 760ms;
   --music-body-glitch-front-duration: 310ms;
   --music-body-glitch-mid-duration: 460ms;
   --music-body-glitch-back-duration: 700ms;
-  --music-shift-xs: 0px;
-  --music-shift-xs-neg: 0px;
-  --music-shift-y-xs: 0px;
   --music-scale-xs: 1;
   --music-letter-xs: 0em;
-  --music-shift-sm: 0px;
-  --music-shift-sm-neg: 0px;
-  --music-shift-y-sm: 0px;
   --music-scale-sm: 1;
   --music-letter-sm: 0em;
-  --music-shift-md: 0px;
-  --music-shift-md-neg: 0px;
-  --music-shift-y-md: 0px;
   --music-scale-md: 1;
   --music-letter-md: 0em;
-  --music-shift-lg: 0px;
-  --music-shift-lg-neg: 0px;
-  --music-shift-y-lg: 0px;
   --music-scale-lg: 1;
   --music-letter-lg: 0em;
+  --music-body-rhythm-scale: 1;
+  --music-body-rhythm-letter: 0em;
 }
 
 html,
@@ -704,17 +693,6 @@ pre code,
   transform-style: preserve-3d;
 }
 
-/* Chromatic dispersion keeps the original glyphs readable while separating
-   cyan and red channels around the source text. */
-.glitch-dispersion {
-  display: inline-block;
-  color: inherit;
-  text-shadow:
-    var(--glitch-dispersion-offset-neg, -2px) 0 0 rgb(131 165 152 / 0.72),
-    var(--glitch-dispersion-offset, 2px) 0 0 rgb(251 73 52 / 0.72);
-  transition: text-shadow 0.16s ease;
-}
-
 /* ---- Multi-layer glitch group wrapper ---- */
 .glitch-chars-group {
   display: inline-grid;
@@ -881,10 +859,6 @@ body.crt-enabled::after {
     /* Keep chromatic aberration (text-shadow) as static depth cue. */
   }
 
-  .glitch-dispersion {
-    text-shadow: none;
-  }
-
   /* Hide animated noise overlay; static scanline pattern stays */
   .glitch-chars-group::after {
     display: none;
@@ -992,82 +966,54 @@ body.crt-enabled::after {
 /*
  * Font size and palette select a profile rather than merely changing visual
  * styling. The analyser supplies shared values while these profiles choose
- * how much movement, chroma separation, and cadence each text tier receives.
+ * how much movement and cadence each text tier receives. Chromatic treatment
+ * is reserved for the generated glitch glyph groups above.
  */
 .music-glitch-target {
-  --music-rhythm-shift: var(--music-shift-sm);
-  --music-rhythm-shift-neg: var(--music-shift-sm-neg);
-  --music-rhythm-shift-y: var(--music-shift-y-sm);
   --music-rhythm-scale: var(--music-scale-sm);
   --music-rhythm-letter: var(--music-letter-sm);
-  --music-rhythm-rgb: 235 219 178;
 }
 
 .music-glitch-target--logo {
-  --music-rhythm-shift: var(--music-shift-lg);
-  --music-rhythm-shift-neg: var(--music-shift-lg-neg);
-  --music-rhythm-shift-y: var(--music-shift-y-lg);
   --music-rhythm-scale: var(--music-scale-lg);
   --music-rhythm-letter: var(--music-letter-lg);
-  --music-rhythm-rgb: 250 189 47;
 }
 
 .music-glitch-target--title {
-  --music-rhythm-shift: var(--music-shift-md);
-  --music-rhythm-shift-neg: var(--music-shift-md-neg);
-  --music-rhythm-shift-y: var(--music-shift-y-md);
   --music-rhythm-scale: var(--music-scale-md);
   --music-rhythm-letter: var(--music-letter-md);
-  --music-rhythm-rgb: 235 219 178;
 }
 
 .music-glitch-target--meta {
-  --music-rhythm-shift: var(--music-shift-xs);
-  --music-rhythm-shift-neg: var(--music-shift-xs-neg);
-  --music-rhythm-shift-y: var(--music-shift-y-xs);
   --music-rhythm-scale: var(--music-scale-xs);
   --music-rhythm-letter: var(--music-letter-xs);
-  --music-rhythm-rgb: 146 131 116;
 }
 
 .music-glitch-target--body {
-  --music-rhythm-rgb: 251 73 52;
-  --music-rhythm-shift: var(--music-shift-lg);
-  --music-rhythm-shift-neg: var(--music-shift-lg-neg);
-  --music-rhythm-shift-y: var(--music-shift-y-lg);
+  --music-rhythm-scale: var(--music-body-rhythm-scale);
+  --music-rhythm-letter: var(--music-body-rhythm-letter);
   --music-glitch-front-duration: var(--music-body-glitch-front-duration);
   --music-glitch-mid-duration: var(--music-body-glitch-mid-duration);
   --music-glitch-back-duration: var(--music-body-glitch-back-duration);
 }
 
-/* Paused music preserves the last generated frame; only active playback
-   advances the variables and random character replacement. */
 html:is([data-music-state='playing'], [data-music-state='paused']) .music-glitch-target {
-  text-shadow:
-    var(--music-rhythm-shift-neg) 0 0 rgb(131 165 152 / var(--music-chroma)),
-    var(--music-rhythm-shift) var(--music-rhythm-shift-y) 0 rgb(var(--music-rhythm-rgb) / var(--music-chroma));
-}
-
-html:is([data-music-state='playing'], [data-music-state='paused']) .music-glitch-target:not(.music-glitch-target--body) {
   scale: var(--music-rhythm-scale);
   letter-spacing: var(--music-rhythm-letter);
 }
 
 html[data-music-state='playing'] .music-glitch-target {
-  will-change: transform, text-shadow, letter-spacing;
+  will-change: transform, letter-spacing;
 }
 
 /* APlayer creates these labels outside React. They receive the same rhythm
-   through CSS only so the player's own DOM and controls remain stable. */
+   through spacing only so the player's own DOM and controls remain stable. */
 html:is([data-music-state='playing'], [data-music-state='paused']) .aplayer :is(
   .aplayer-title,
   .aplayer-author,
   .aplayer-list-title,
   .aplayer-list-author
 ) {
-  text-shadow:
-    var(--music-shift-xs-neg) 0 0 rgb(131 165 152 / var(--music-chroma)),
-    var(--music-shift-xs) var(--music-shift-y-xs) 0 rgb(235 219 178 / var(--music-chroma));
   letter-spacing: var(--music-letter-xs);
 }
 
@@ -1076,7 +1022,6 @@ html:is([data-music-state='playing'], [data-music-state='paused']) .aplayer :is(
   .aplayer :is(.aplayer-title, .aplayer-author, .aplayer-list-title, .aplayer-list-author) {
     scale: 1 !important;
     letter-spacing: normal !important;
-    text-shadow: none !important;
     will-change: auto !important;
   }
 }
