@@ -1,70 +1,60 @@
-import { forwardRef } from 'react';
 import { useBlogPosts } from '../hooks/useBlogPosts';
 import BlogPostComponent from './BlogPost';
 
 interface BlogPostListProps {
   expandedPostId: string | null;
   onPostToggle: (postDateStr: string) => void;
-  revealProgress: number;
 }
 
-const BlogPostList = forwardRef<HTMLElement, BlogPostListProps>(
-  function BlogPostList({ expandedPostId, onPostToggle, revealProgress }, ref) {
+const MAX_STAGGERED_ENTRIES = 8;
+const ENTRY_STAGGER_MS = 35;
+
+export default function BlogPostList({ expandedPostId, onPostToggle }: BlogPostListProps) {
   const { posts, loading, error } = useBlogPosts();
+  const hasPosts = posts.length > 0;
 
-  if (loading) {
-    return (
-      <section className="blog-posts" style={{ visibility: 'hidden' }}>
-        <div className="container" />
-      </section>
-    );
-  }
+  return (
+    <section
+      className={`blog-posts${hasPosts ? ' blog-posts--ready' : ''}`}
+      aria-busy={loading}
+    >
+      <div className="container">
+        {loading && (
+          <p className="blog-posts-status" role="status">
+            正在加载文章列表…
+          </p>
+        )}
 
-  if (error) {
-    return (
-      <section className="blog-posts">
-        <div className="container">
-          <div style={{ padding: '2rem' }}>
-            <p style={{ color: 'var(--warning-color)' }}>加载失败：{error}</p>
-          </div>
-        </div>
-      </section>
-    );
-  }
+        {!loading && error && (
+          <p className="blog-posts-status blog-posts-status--error" role="alert">
+            加载失败：{error}
+          </p>
+        )}
 
-  if (posts.length === 0) {
-    return (
-      <section className="blog-posts">
-        <div className="container">
-          <div style={{ padding: '2rem' }}>
+        {!loading && !error && !hasPosts && (
+          <div className="blog-posts-empty">
             <h3>暂无博客文章</h3>
             <p>在 ./blogs/ 目录下添加 .md 文件来创建博客文章。</p>
             <p>文件名格式推荐: <code>YYYYMMDD-your-title.md</code></p>
           </div>
-        </div>
-      </section>
-    );
-  }
+        )}
 
-  return (
-    <section
-      ref={ref}
-      className="blog-posts"
-      style={{ opacity: revealProgress, transition: 'opacity 0.3s ease-out' }}
-    >
-      <div className="container">
-        {posts.map(post => (
-          <BlogPostComponent
-            key={post.dateStr}
-            post={post}
-            isExpanded={expandedPostId === post.dateStr}
-            isRevealed={revealProgress >= 1}
-            onToggle={() => onPostToggle(post.dateStr)}
-          />
+        {!loading && !error && posts.map((post, index) => (
+          <div
+            className="post-list-entry"
+            key={post.file}
+            style={{
+              animationDelay: `${Math.min(index, MAX_STAGGERED_ENTRIES) * ENTRY_STAGGER_MS}ms`,
+            }}
+          >
+            <BlogPostComponent
+              post={post}
+              isExpanded={expandedPostId === post.dateStr}
+              onToggle={() => onPostToggle(post.dateStr)}
+            />
+          </div>
         ))}
       </div>
     </section>
   );
-});
-
-export default BlogPostList;
+}

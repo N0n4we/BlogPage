@@ -268,9 +268,6 @@ export function applyGlitchCharsGroup(
   parent.replaceChild(fragment, textNode);
 }
 
-/** @deprecated Replaced by applyGlitchCharsGroup for multi-layer depth. */
-export const applyGlitchChars = applyGlitchCharsGroup;
-
 // Undo all glitch modifications: replace .glitch-blackout and .glitch-chars-group
 // elements with their text content, then normalize to merge adjacent text nodes.
 // For groups, text is extracted from a single layer to avoid 3× concatenation.

@@ -7,23 +7,18 @@ import MusicPlayer from './components/MusicPlayer';
 import BlogPostList from './components/BlogPostList';
 
 import { usePostNavigation } from './hooks/usePostNavigation';
-import { useScrollStage } from './hooks/useScrollStage';
 
 function BlogPage() {
   const { expandedPostId, togglePost } = usePostNavigation();
-  const { revealProgress, blogRef } = useScrollStage();
-  const mainRef = useRef<HTMLElement>(null);
 
   return (
     <>
       <Header />
-      <main className="main" ref={mainRef}>
+      <main className="main">
         <MusicPlayer />
         <BlogPostList
-          ref={blogRef}
           expandedPostId={expandedPostId}
           onPostToggle={togglePost}
-          revealProgress={revealProgress}
         />
       </main>
     </>

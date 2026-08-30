@@ -1,5 +1,5 @@
 /**
- * Single seam for document.title and meta[name="description"] mutations.
+ * Single seam for post-specific document metadata.
  * Captures original values at module init so callers never need to carry defaults.
  */
 const ORIGINAL_TITLE = document.title;

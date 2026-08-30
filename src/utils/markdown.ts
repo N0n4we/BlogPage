@@ -137,11 +137,3 @@ export function createSummaryFromMarkdown(markdown: string, maxLength: number = 
   }
   return text;
 }
-
-// 将文件名 slug 转换为可读的标题
-export function slugToTitle(slug: string): string {
-  return slug
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}

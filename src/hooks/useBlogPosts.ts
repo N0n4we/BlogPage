@@ -1,12 +1,6 @@
-import { useState, useEffect } from 'react';
-import { slugToTitle } from '../utils/markdown';
-
-export interface BlogPost {
-  file: string;
-  dateStr: string;
-  title: string;
-  displayDate: string;
-}
+import { useEffect, useState } from 'react';
+import type { BlogPost } from '../types/blog';
+import { parseBlogPostFile } from '../utils/blogPost';
 
 interface UseBlogPostsResult {
   posts: BlogPost[];
@@ -14,58 +8,50 @@ interface UseBlogPostsResult {
   error: string | null;
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === 'string');
+}
+
+const MANIFEST_URL = `${import.meta.env.BASE_URL}blogs/manifest.json`;
+
 export function useBlogPosts(): UseBlogPostsResult {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchBlogList() {
       try {
-        // 尝试从 manifest.json 获取博客列表（开发环境和构建后都支持）
-        const response = await fetch(`${import.meta.env.BASE_URL}blogs/manifest.json`);
-        if (response.ok) {
-          const files: string[] = await response.json();
+        const response = await fetch(MANIFEST_URL, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-          const blogPosts = files
-            .map(file => {
-              const match = file.match(/^(\d{8})-(.*)\.md$/);
-              if (!match) return null;
+        const files: unknown = await response.json();
+        if (!isStringArray(files)) throw new Error('文章索引格式无效');
 
-              const [, dateStr, titleSlug] = match;
-              const title = slugToTitle(titleSlug);
-              let displayDate = 'Invalid Date';
-              try {
-                const year = dateStr.substring(0, 4);
-                const month = dateStr.substring(4, 6);
-                const day = dateStr.substring(6, 8);
-                displayDate = `${year}/${month}/${day}`;
-              } catch {
-                console.warn(`Could not parse date from filename: ${file}`);
-              }
+        if (controller.signal.aborted) return;
+        const nextPosts = files
+          .map(parseBlogPostFile)
+          .filter((post): post is BlogPost => post !== null)
+          .sort((left, right) =>
+            right.dateStr.localeCompare(left.dateStr) || left.file.localeCompare(right.file),
+          );
 
-              return {
-                file,
-                dateStr,
-                title,
-                displayDate,
-              };
-            })
-            .filter((post): post is BlogPost => post !== null);
-
-          setPosts(blogPosts);
-        } else {
-          throw new Error(`Failed to fetch manifest: ${response.status}`);
-        }
+        setPosts(nextPosts);
       } catch (err) {
-        console.error('Error fetching blog list:', err);
+        if (controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
-    fetchBlogList();
+    void fetchBlogList();
+    return () => controller.abort();
   }, []);
 
   return { posts, loading, error };

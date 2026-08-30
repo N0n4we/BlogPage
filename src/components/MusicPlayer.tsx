@@ -29,7 +29,6 @@ const songs: Song[] = [
 
 export default function MusicPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<APlayer | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -56,8 +55,6 @@ export default function MusicPlayer() {
       theme: '#282828',
       audio: [randomSong]
     });
-
-    playerRef.current = ap;
 
     // Expose the underlying <audio> element for the page-wide rhythm engine.
     const audio = (ap as unknown as { audio: HTMLAudioElement }).audio;
@@ -90,18 +87,14 @@ export default function MusicPlayer() {
 
     return () => {
       removeInteractionListeners();
-      if (playerRef.current) {
-        playerRef.current.destroy();
-      }
+      ap.destroy();
     };
   }, []);
 
   return (
     <div className="music-player-post">
       <div className="music-player">
-        <div style={{ textAlign: 'center' }}>
-          <div ref={containerRef} id="aplayer"></div>
-        </div>
+        <div ref={containerRef} id="aplayer"></div>
       </div>
     </div>
   );

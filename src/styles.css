@@ -44,18 +44,9 @@
   --background-color: var(--unified-background);
   --header-background: var(--unified-background);
   --post-background: var(--unified-background);
-  --footer-background: var(--unified-background);
-  --list-item-background: var(--unified-background);
-  --input-background: var(--unified-background);
-  --code-background: var(--unified-background);
-  --inline-code-background: var(--unified-background);
-  --button-background: var(--unified-background);
-  --surface-color: var(--unified-background);
 
   /* 文本颜色 */
   --text-color: #ebdbb2;
-  /* light1 */
-  --footer-text: #ebdbb2;
   /* light1 */
   --post-meta-color: #928374;
   /* gray */
@@ -67,12 +58,6 @@
   /* neutral_blue */
   --section-title-color: #fabd2f;
   /* bright_yellow */
-  --hero-background: linear-gradient(135deg, #d79921, #b57614);
-  /* neutral_yellow to faded_yellow */
-  --hero-background-alt: linear-gradient(135deg, #b57614, #9d0006);
-  /* faded_yellow to faded_red */
-  --button-text: #d79921;
-  /* bright_yellow */
   --border-color: #665c54;
   /* dark3 */
 
@@ -80,10 +65,6 @@
   --hover-background: #d5c4a1;
   /* 悬停时的文字颜色 */
   --hover-text: #1d2021;
-
-  /* 成功/确认颜色 */
-  --success-color: #b8bb26;
-  /* bright_green */
 
   /* 代码高亮颜色 */
   --code-border: #665c54;
@@ -95,8 +76,6 @@
 
   /* CRT overlay */
   --crt-scanline-opacity: 0.08;
-  --crt-scanline-spacing: 4px;
-  --crt-grain-opacity: 0.04;
   --crt-grain-speed: 0.3s;
   --crt-z-index: 9998;
 
@@ -223,44 +202,6 @@ body {
   transform: translateY(-50%) translateX(0);
 }
 
-.nav ul {
-  list-style: none;
-  display: flex;
-}
-
-.nav ul li {
-  margin-left: 1.2rem;
-}
-
-.nav ul li a {
-  text-decoration: none;
-  color: var(--text-color);
-  font-weight: 500;
-  font-size: 1.1rem;
-  transition: color 0.3s;
-  position: relative;
-  padding: 0.6rem 0;
-}
-
-.nav ul li a::after {
-  content: '';
-  position: absolute;
-  width: 0;
-  height: 2px;
-  bottom: 0;
-  left: 0;
-  background-color: var(--link-color);
-  transition: width 0.3s ease;
-}
-
-.nav ul li a:hover::after {
-  width: 100%;
-}
-
-.nav ul li a:hover {
-  color: var(--link-color);
-}
-
 .music-player {
   width: auto;
   margin-top: 0;
@@ -275,39 +216,9 @@ body {
   background-color: var(--background-color);
 }
 
-/* 激活状态的导航链接 */
-.nav ul li a.active {
-  color: var(--section-title-color);
-  font-weight: bold;
-}
-
 /* 主体内容样式 */
 .main {
   padding: 0;
-}
-
-/* 英雄区域样式 */
-.hero {
-  background: var(--hero-background);
-  color: var(--footer-text);
-  padding: 2rem 0;
-  text-align: center;
-}
-
-/* 暖色调英雄区域样式 */
-.hero-warm {
-  background: var(--hero-background-alt);
-}
-
-.hero-title {
-  font-size: 2.8rem;
-  margin-bottom: 1.2rem;
-  font-weight: 400;
-}
-
-.hero-subtitle {
-  font-size: 1.3rem;
-  opacity: 0.9;
 }
 
 /* 博客文章列表样式 */
@@ -332,6 +243,57 @@ body {
   margin: 0;
 }
 
+.blog-posts-status,
+.blog-posts-empty {
+  padding: 1.25rem 1.5rem;
+}
+
+.blog-posts-status {
+  color: var(--post-meta-color);
+}
+
+.blog-posts-status--error {
+  color: var(--warning-color);
+}
+
+.blog-posts-empty h3 {
+  margin-bottom: 0.5rem;
+}
+
+.post-list-entry {
+  width: 100%;
+}
+
+/* The list is available as soon as its manifest resolves. Keep the entrance
+   brief and capped so a long archive never makes later posts feel delayed. */
+.blog-posts--ready .post-list-entry {
+  opacity: 0;
+  animation: post-list-entry 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes post-list-entry {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-posts--ready .post-list-entry {
+    animation: none;
+    opacity: 1;
+  }
+
+  .post-full-content {
+    transition: none;
+  }
+}
+
 .post {
   background-color: var(--post-background);
   padding: 0;
@@ -343,7 +305,7 @@ body {
   isolation: isolate;
   /* 创建新的堆叠上下文 */
   color: var(--text-color);
-  transition: color 1.5s cubic-bezier(.43, 1.19, 1, .4);
+  transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
   width: 100%;
   margin: 0;
   cursor: pointer;
@@ -400,6 +362,14 @@ body {
   color: inherit;
   max-height: none;
   overflow: visible;
+}
+
+.content-loading {
+  opacity: 0.8;
+}
+
+.content-load-error {
+  color: var(--warning-color);
 }
 
 .post-full-content .rendered-content h1 {
@@ -555,14 +525,6 @@ body {
   transform: translate(-50%, -50%) scale(0);
 }
 
-/* 默认状态下显示统一背景色 */
-.post {
-  background-color: var(--post-background);
-  position: relative;
-  overflow: hidden;
-  transition: color 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
 /* 鼠标悬停时触发背景色圆形扩散效果 */
 .post:hover::before {
   transform: translate(-50%, -50%) scale(9);
@@ -578,41 +540,6 @@ body {
 .post:hover .post-meta {
   color: var(--hover-text);
   transition: color 2s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
-/* 让浏览器为这些元素的滤镜准备优化（可选，但建议） */
-.post .rendered-content pre code,
-.post .rendered-content code {
-  will-change: filter;
-  transition: filter 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
-.post .rendered-content strong,
-.post .rendered-content b,
-.post .rendered-content em,
-.post .rendered-content i {
-  will-change: filter;
-  transition: filter 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
-/* 代码框内的"字母"在涟漪后（post:hover）反色 */
-.post:hover .rendered-content pre code,
-.post:hover .rendered-content code {
-  filter: invert(1) hue-rotate(180deg) saturate(1.05);
-  transition: filter 2s cubic-bezier(0.25, 0.1, 0.25, 1);
-}
-
-/* bold / italic / bold-italic 在涟漪后反色 */
-.post:hover .rendered-content strong,
-.post:hover .rendered-content b,
-.post:hover .rendered-content em,
-.post:hover .rendered-content i,
-.post:hover .rendered-content strong em,
-.post:hover .rendered-content em strong,
-.post:hover .rendered-content b i,
-.post:hover .rendered-content i b {
-  filter: invert(1) hue-rotate(180deg) saturate(1.05);
-  transition: filter 2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .post h3 {
@@ -645,124 +572,7 @@ body {
   margin-bottom: 0;
 }
 
-/* 关于页面样式 */
-.about-section {
-  padding: 1rem 0;
-}
-
-.music-section {
-  margin-top: 2rem;
-}
-
-.music-section h3 {
-  margin-bottom: 1rem;
-}
-
-/* 页脚样式 */
-.footer {
-  background-color: var(--footer-background);
-  color: var(--footer-text);
-  text-align: center;
-  padding: 0;
-  margin-top: 0;
-  border-top: none !important;
-}
-
-.footer p {
-  font-size: 0.9rem;
-}
-
-.footer .container {
-  padding: 0.5rem 20px;
-}
-
-/* Markdown内容样式 */
-.markdown-content {
-  font-size: 1.15rem;
-  line-height: 1.7;
-}
-
-.markdown-content h1 {
-  font-size: 2.2rem;
-  margin-bottom: 1.8rem;
-  color: var(--text-color);
-  text-align: center;
-  font-weight: 400;
-}
-
-.markdown-content h2 {
-  font-size: 1.6rem;
-  margin: 2.2rem 0 1.2rem;
-  color: var(--text-color);
-  font-weight: 500;
-}
-
-.markdown-content p {
-  margin-bottom: 1.2rem;
-}
-
-.markdown-content ul {
-  list-style-type: none;
-  padding-left: 0;
-}
-
-.markdown-content li {
-  background-color: transparent;
-  margin: 0;
-  padding: 0.25rem 0;
-  border-radius: 0;
-  font-weight: 500;
-}
-
-/* 脚注样式 */
-.footnote-ref {
-  cursor: pointer;
-}
-
-.footnote-element {
-  color: var(--link-color);
-  transition: color 0.3s ease;
-}
-
-.footnote-element:hover {
-  color: var(--link-hover-color);
-}
-
-.footnotes {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.footnotes hr {
-  display: none;
-  /* 隐藏hr，我们已经有了border-top */
-}
-
-.footnotes-list {
-  list-style: decimal;
-  padding-left: 1.5rem;
-  margin: 0;
-}
-
-.footnote-item {
-  margin-bottom: 0.5rem;
-  color: var(--post-meta-color);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.footnote-backref {
-  margin-left: 0.5rem;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.footnote-backref:hover {
-  color: var(--link-hover-color);
-}
-
-/* 在博客文章的渲染内容中的脚注样式 */
+/* 脚注只在文章正文中渲染。 */
 .post-full-content .rendered-content .footnote-ref {
   cursor: pointer;
 }
@@ -828,11 +638,13 @@ body {
 /* 性能优化 */
 .post .rendered-content :is(code, strong, b, em, i) {
   will-change: filter;
+  transition: filter 1.8s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 涟漪后只对“最外层”的 code/bold/italic 反色，避免 *** 被双反色抵消 */
 .post:hover .rendered-content :is(code, strong, b, em, i) {
   filter: invert(1) hue-rotate(180deg) saturate(1.05);
+  transition: filter 2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* 取消内层的再次反色：任何强调元素/代码嵌套在另一个强调元素/代码里面，都不再叠加反色 */
@@ -854,161 +666,6 @@ pre code,
   border: none !important;
   /* 让播放器背景色与您的博客主题背景色保持一致 */
   background: var(--unified-background) !important;
-}
-
-/* ---------- 评论区样式 ---------- */
-.comments-wrapper {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.35s ease, visibility 0.35s ease;
-}
-
-.comments-wrapper.visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-.comments-section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.comments-title {
-  font-size: 1.3rem;
-  margin-bottom: 1rem;
-  color: var(--section-title-color);
-  font-weight: 500;
-}
-
-.comment-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  margin-bottom: 1.5rem;
-}
-
-.comment-input {
-  background-color: var(--input-background);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.6rem 0.8rem;
-  color: var(--text-color);
-  font-family: inherit;
-  font-size: 0.95rem;
-  transition: border-color 0.3s ease;
-}
-
-.comment-input:focus {
-  outline: none;
-  border-color: var(--link-color);
-}
-
-.comment-input::placeholder {
-  color: var(--post-meta-color);
-}
-
-.comment-nickname {
-  max-width: 200px;
-}
-
-.comment-content {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.comment-submit {
-  align-self: flex-start;
-  background-color: var(--button-background);
-  border: 1px solid var(--button-text);
-  color: var(--button-text);
-  padding: 0.5rem 1.2rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: all 0.3s ease;
-}
-
-.comment-submit:hover:not(:disabled) {
-  background-color: var(--button-text);
-  color: var(--hover-text);
-}
-
-.comment-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.comments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.comments-loading,
-.comments-empty {
-  color: var(--post-meta-color);
-  font-size: 0.95rem;
-}
-
-.comment-item {
-  padding: 0.8rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background-color: transparent;
-}
-
-.comment-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.comment-author {
-  font-weight: 500;
-  color: var(--link-color);
-}
-
-.comment-date {
-  font-size: 0.85rem;
-  color: var(--post-meta-color);
-}
-
-.comment-body {
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.comment-body p {
-  margin-bottom: 0.5rem;
-}
-
-.comment-body p:last-child {
-  margin-bottom: 0;
-}
-
-.comment-body code {
-  background: transparent;
-  border: 1px solid var(--code-border);
-  border-radius: 4px;
-  padding: 0.05rem 0.35rem;
-  color: var(--inline-code-color);
-  font-family: 'JetBrains Mono Nerd', monospace;
-}
-
-.comment-body pre {
-  background-color: transparent;
-  border: 1px solid var(--code-border);
-  border-radius: 6px;
-  padding: 0.8rem;
-  overflow-x: auto;
-  margin: 0.5rem 0;
-}
-
-.comment-body pre code {
-  border: none;
-  padding: 0;
 }
 
 /* ---------- Glitch Effect ---------- */
@@ -1089,7 +746,7 @@ pre code,
       rgba(0, 0, 0, 0.06) 3px
     );
   /* Smooth opacity transition for natural appear/disappear during
-     glitch cycle rotation (removeSomeGlitchSpans / applyGlitchChars). */
+     glitch cycle rotation (removeSomeGlitchSpans / applyGlitchCharsGroup). */
   transition: opacity 0.15s ease;
   animation: glitch-jitter var(--music-glitch-front-duration) steps(3, jump-start) infinite;
   animation-play-state: paused;
@@ -1206,21 +863,6 @@ body.crt-enabled::after {
   .glitch-chars-group::after {
     display: none;
   }
-}
-
-/* ---------- Custom Cursor (PRD-002) ---------- */
-
-.custom-cursor {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 9999;
-  /* Promote to compositor layer */
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 /* ---------- Glitch Jitter Animations ---------- */
@@ -1385,129 +1027,6 @@ html:is([data-music-state='playing'], [data-music-state='paused']) .aplayer :is(
 
   .post h3,
   .post .post-meta {
-    transform: none !important;
-  }
-}
-
-/* ---------- Ambient Dynamic Glow (PRD-006) ---------- */
-
-#ambient-glow {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    radial-gradient(
-      circle at var(--glow-x, 50%) var(--glow-y, 50%),
-      rgba(215, 153, 33, 0.08) 0%,      /* Gruvbox #d79921 bright_yellow */
-      rgba(215, 153, 33, 0.04) 25%,
-      rgba(181, 118, 20, 0.05) 50%,      /* Gruvbox #b57614 neutral_yellow */
-      transparent 70%
-    );
-  will-change: background;
-  min-width: 100vw;
-  min-height: 100vh;
-}
-
-/* Disable glow on touch devices */
-@media (pointer: coarse) {
-  #ambient-glow {
-    opacity: 0 !important;
-  }
-}
-
-/* Disable glow for reduced-motion users */
-@media (prefers-reduced-motion: reduce) {
-  #ambient-glow {
-    opacity: 0;
-  }
-}
-
-/* ---------- Scroll-Triggered Reveal Animations (PRD-005) ---------- */
-
-/* Initial hidden state — visibility: hidden prevents any flash before animation */
-.reveal-enter > * {
-  visibility: hidden;
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-/* Revealed state */
-.reveal-enter.reveal-active > * {
-  visibility: visible;
-  animation: reveal-fade-in 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) both;
-  will-change: opacity, transform;
-}
-
-@keyframes reveal-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Stagger: cascading delay for each child */
-.reveal-enter > *:nth-child(1) { transition-delay: 0ms; }
-.reveal-enter > *:nth-child(2) { transition-delay: 80ms; }
-.reveal-enter > *:nth-child(3) { transition-delay: 160ms; }
-.reveal-enter > *:nth-child(4) { transition-delay: 240ms; }
-.reveal-enter > *:nth-child(5) { transition-delay: 320ms; }
-.reveal-enter > *:nth-child(6) { transition-delay: 400ms; }
-.reveal-enter > *:nth-child(7) { transition-delay: 480ms; }
-.reveal-enter > *:nth-child(8) { transition-delay: 560ms; }
-.reveal-enter > *:nth-child(9) { transition-delay: 640ms; }
-.reveal-enter > *:nth-child(10) { transition-delay: 720ms; }
-
-/* Reduced motion: no animation */
-@media (prefers-reduced-motion: reduce) {
-  .reveal-enter > * {
-    transition: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-}
-
-/* ============================================
-   Scroll-Triggered Reveal Animations (PRD-005)
-   ============================================ */
-
-/* Initial hidden state — posts start invisible and offset downward */
-.reveal-enter > * {
-  opacity: 0;
-  transform: translateY(20px);
-  transition:
-    opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
-    transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
-  will-change: opacity, transform;
-}
-
-/* Revealed state — IntersectionObserver adds this class */
-.reveal-enter.reveal-active > * {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Stagger: each child animates with a progressive delay */
-.reveal-enter > *:nth-child(1) { transition-delay: 0ms; }
-.reveal-enter > *:nth-child(2) { transition-delay: 80ms; }
-.reveal-enter > *:nth-child(3) { transition-delay: 160ms; }
-.reveal-enter > *:nth-child(4) { transition-delay: 240ms; }
-.reveal-enter > *:nth-child(5) { transition-delay: 320ms; }
-.reveal-enter > *:nth-child(6) { transition-delay: 400ms; }
-.reveal-enter > *:nth-child(7) { transition-delay: 480ms; }
-.reveal-enter > *:nth-child(8) { transition-delay: 560ms; }
-.reveal-enter > *:nth-child(9) { transition-delay: 640ms; }
-.reveal-enter > *:nth-child(10) { transition-delay: 720ms; }
-
-/* Accessibility: no animation when user prefers reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .reveal-enter > * {
-    transition: none !important;
-    opacity: 1 !important;
     transform: none !important;
   }
 }

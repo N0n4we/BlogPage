@@ -19,6 +19,7 @@ const base =
 // Plugin to generate blog manifest
 function blogManifestPlugin(): Plugin {
   const blogsDir = path.resolve(__dirname, 'public/blogs')
+  const manifestPath = `${base}blogs/manifest.json`.replace(/\/+/g, '/')
 
   function generateManifest(): string {
     try {
@@ -37,8 +38,10 @@ function blogManifestPlugin(): Plugin {
     name: 'blog-manifest',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (req.url === '/blogs/manifest.json') {
+        const requestPath = new URL(req.url ?? '/', 'http://localhost').pathname
+        if (requestPath === manifestPath) {
           res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Cache-Control', 'no-store')
           res.end(generateManifest())
           return
         }

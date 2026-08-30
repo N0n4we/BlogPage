@@ -1,22 +1,21 @@
-import { useState, useRef, useEffect, useCallback, MouseEvent } from 'react';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-python';
-import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-css';
-import 'prismjs/components/prism-json';
-import 'prismjs/components/prism-bash';
-import 'prismjs/components/prism-markdown';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import { devourContent } from '../utils/devour';
 import { useGlitchEffect } from '../hooks/useGlitchEffect';
 import { useContentTransition } from '../hooks/useContentTransition';
 import { useContentPipeline } from '../hooks/useContentPipeline';
 import { documentHead } from '../modules/documentHead';
-import { BlogPost as BlogPostType } from '../hooks/useBlogPosts';
+import type { BlogPost as BlogPostType } from '../types/blog';
 
 interface BlogPostProps {
   post: BlogPostType;
   isExpanded: boolean;
-  isRevealed: boolean;
   onToggle: () => void;
 }
 
@@ -31,7 +30,7 @@ const isTouchDevice =
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
-export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: BlogPostProps) {
+export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) {
   // Content pipeline: fetch + parse markdown (skipped when collapsed)
   const { html, summary, loading, error } = useContentPipeline(
     isExpanded ? post.file : null,
@@ -50,8 +49,10 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
 
   // Meta description from content summary (only when expanded)
   useEffect(() => {
-    if (summary && isExpanded) documentHead.setMeta(summary);
-  }, [summary, isExpanded]);
+    if (!isExpanded) return;
+    documentHead.setTitle(post.title);
+    if (summary) documentHead.setMeta(summary);
+  }, [post.title, summary, isExpanded]);
 
   // Resize: re-measure expanded content height
   useEffect(() => {
@@ -107,26 +108,37 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
   useEffect(() => {
     if (!html || !containerRef.current || !isExpanded) return;
 
-    Prism.highlightAllUnder(containerRef.current);
+    let cancelled = false;
+    let rafId = 0;
 
-    const rafId = requestAnimationFrame(() => {
-      const el = containerRef.current;
-      if (!el || !isExpanded) return;
+    void import('../utils/highlight').then(({ highlightContent }) => {
+      if (cancelled || !containerRef.current || !isExpanded) return;
 
-      if (!el.classList.contains('expanded')) {
-        expand();
-      } else {
+      highlightContent(containerRef.current);
+      rafId = requestAnimationFrame(() => {
+        const el = containerRef.current;
+        if (!el || cancelled || !isExpanded) return;
+
         syncHeight();
-      }
+      });
     });
 
-    return () => cancelAnimationFrame(rafId);
-  }, [html, isExpanded, expand, syncHeight, containerRef]);
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [html, isExpanded, syncHeight, containerRef]);
 
   // ---- 点击切换 ----
   const handleClick = (e: MouseEvent<HTMLElement>) => {
-    if (!isRevealed) return;
     if ((e.target as HTMLElement).closest('.post-full-content')) return;
+    onToggle();
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if ((e.target as HTMLElement).closest('.post-full-content')) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
     onToggle();
   };
 
@@ -168,19 +180,30 @@ export default function BlogPost({ post, isExpanded, isRevealed, onToggle }: Blo
       data-file={post.file}
       data-date={post.dateStr}
       data-title={post.title}
+      role="button"
+      tabIndex={0}
+      aria-expanded={isExpanded}
+      aria-controls={`post-content-${post.dateStr}`}
+      aria-busy={loading}
       onMouseMove={handleMouseMove}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
     >
       <div className="post-content-wrapper">
         <h3 ref={titleRef}>{post.title}</h3>
         <p className="post-meta" ref={metaRef}>{post.displayDate}</p>
 
-        <div className="post-full-content" ref={containerRef}>
+        <div
+          className="post-full-content"
+          id={`post-content-${post.dateStr}`}
+          ref={containerRef}
+          aria-hidden={!isExpanded}
+        >
           <div
             className="rendered-content"
             ref={contentRef}
             dangerouslySetInnerHTML={{
-              __html: loading ? '<p style="opacity:.8">正在加载...</p>' : displayHtml,
+              __html: loading ? '<p class="content-loading">正在加载...</p>' : displayHtml,
             }}
           />
         </div>

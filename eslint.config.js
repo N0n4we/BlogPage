@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Generated artifacts are checked by the build, not hand-authored lint rules.
+  globalIgnores(['dist/**', 'src/wasm/**', 'wasm-markdown/pkg/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
