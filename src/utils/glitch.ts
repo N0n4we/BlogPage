@@ -21,14 +21,10 @@ export function getRandomGlitchString(length: number): string {
   return s;
 }
 
-// Walk all #text nodes under root, skipping those inside <pre>, <code>,
+// Collect all #text nodes under root, skipping those inside <pre>, <code>,
 // or already inside a glitch span (so glitches don't nest on each other).
-// Collects nodes first (TreeWalker is live and would skip nodes during mutation),
-// then invokes callback for each.
-export function walkTextNodes(
-  root: HTMLElement,
-  callback: (node: Text) => void
-): void {
+// Collects nodes first because the caller may mutate the tree while iterating.
+export function collectTextNodes(root: HTMLElement): Text[] {
   const walker = document.createTreeWalker(
     root,
     NodeFilter.SHOW_TEXT,
@@ -65,6 +61,16 @@ export function walkTextNodes(
     textNodes.push(walker.currentNode as Text);
   }
 
+  return textNodes;
+}
+
+// Walk all eligible text nodes in DOM order for callers that do not need
+// position-aware sampling.
+export function walkTextNodes(
+  root: HTMLElement,
+  callback: (node: Text) => void
+): void {
+  const textNodes = collectTextNodes(root);
   for (const node of textNodes) {
     callback(node);
   }

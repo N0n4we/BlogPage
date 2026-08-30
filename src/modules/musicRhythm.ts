@@ -1,9 +1,9 @@
 import {
   applyBlackout,
   applyGlitchCharsGroup,
+  collectTextNodes,
   removeSomeGlitchSpans,
   restoreGlitchSpans,
-  walkTextNodes,
 } from '../utils/glitch';
 
 export type GlitchIntensity = 'light' | 'heavy';
@@ -156,6 +156,21 @@ function readBand(
     total += data[index];
   }
   return total / (to - from) / 255;
+}
+
+// Pick from evenly spaced sections of a post so a small mutation budget still
+// reaches the middle and the end instead of being consumed by leading nodes.
+function sampleAcrossText<T>(items: readonly T[], count: number): T[] {
+  if (count >= items.length) return [...items];
+
+  const selected: T[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const start = Math.floor((index * items.length) / count);
+    const end = Math.floor(((index + 1) * items.length) / count);
+    const selectedIndex = start + Math.floor(Math.random() * Math.max(1, end - start));
+    selected.push(items[selectedIndex]);
+  }
+  return selected;
 }
 
 /**
@@ -523,12 +538,24 @@ class MusicRhythmController {
 
     removeSomeGlitchSpans(target.element, removeProbability);
 
-    let mutations = 0;
-    walkTextNodes(target.element, (textNode) => {
-      if (mutations >= profile.maxMutations || Math.random() >= actionProbability) return;
-
+    const candidates = collectTextNodes(target.element).filter((textNode) => {
       const text = textNode.textContent ?? '';
-      if (text.trim().length === 0) return;
+      return text.trim().length > 0;
+    });
+    if (candidates.length === 0) return;
+
+    const expectedMutations = profile.maxMutations * actionProbability;
+    const mutationCount = Math.min(
+      candidates.length,
+      Math.max(
+        1,
+        Math.floor(expectedMutations) +
+          (Math.random() < expectedMutations % 1 ? 1 : 0),
+      ),
+    );
+
+    for (const textNode of sampleAcrossText(candidates, mutationCount)) {
+      const text = textNode.textContent ?? '';
 
       const maxLength = Math.min(
         text.length,
@@ -542,8 +569,7 @@ class MusicRhythmController {
       } else {
         applyGlitchCharsGroup(textNode, start, length);
       }
-      mutations += 1;
-    });
+    }
   }
 
   private profileSignal(band: FrequencyBand, snapshot: RhythmSnapshot): number {
