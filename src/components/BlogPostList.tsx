@@ -36,6 +36,9 @@ export default function BlogPostList({ expandedPostId, onPostToggle }: BlogPostL
             <h3>暂无博客文章</h3>
             <p>在 ./blogs/ 目录下添加 .md 文件来创建博客文章。</p>
             <p>文件名格式推荐: <code>YYYYMMDD-your-title.md</code></p>
+            <p>
+              在文件名前加 <code>[REDACTED]</code> 可启用文章故障效果。
+            </p>
           </div>
         )}
 

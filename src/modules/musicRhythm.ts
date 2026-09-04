@@ -143,6 +143,22 @@ interface ChannelConfig {
   mutationScale: number;
   sustainedActionFloor: number;
   removalScale: number;
+  // A pulse is a relative change, so it needs a minimum pulse and absolute
+  // energy floors before it can be treated as an attack. Otherwise a tiny
+  // change near silence can look exactly like a real beat.
+  attackPulseFloor: number;
+  attackLevelFloor: number;
+  attackEnvelopeFloor: number;
+  // A sustained passage may use a lower gate than a transient attack, while
+  // the calibrated threshold still represents full retention.
+  sustainHoldRatio: number;
+  sustainedRemovalRetention: number;
+}
+
+interface ChannelActivity {
+  hasAttack: boolean;
+  hasSustainedSignal: boolean;
+  removalRetention: number;
 }
 
 interface GlitchSpectrum {
@@ -166,6 +182,10 @@ const BODY_RHYTHM_GAIN = 0.85;
 const BASS_FLOOR_REFERENCE_MIN = 0.04;
 const BASS_FLOOR_REFERENCE_MAX = 0.6;
 const BLACKOUT_REMOVAL_REDUCTION = 0.55;
+// Keep a low-end passage from opening the blackout removal gate immediately
+// when the adaptive beat baseline drops between hits.
+const BLACKOUT_REMOVAL_HOLD_MS = 1200;
+const BLACKOUT_REMOVAL_FALL_HALF_LIFE = 700;
 
 // These boundaries separate the actual DOM effects: sub/kick cuts, bass depth,
 // and high-frequency chromatic glyph corruption.
@@ -208,6 +228,11 @@ const CHANNEL_CONFIG: Record<GlitchChannel, ChannelConfig> = {
     mutationScale: 0.85,
     sustainedActionFloor: 0.52,
     removalScale: 0.3,
+    attackPulseFloor: 0.3,
+    attackLevelFloor: 0.44,
+    attackEnvelopeFloor: 0.14,
+    sustainHoldRatio: 0.74,
+    sustainedRemovalRetention: 0.72,
   },
   // High frequencies have their own faster cadence. They no longer compete
   // with black blocks for a single random mutation slot. At a bright peak,
@@ -219,6 +244,11 @@ const CHANNEL_CONFIG: Record<GlitchChannel, ChannelConfig> = {
     mutationScale: 1,
     sustainedActionFloor: 0.72,
     removalScale: 0.42,
+    attackPulseFloor: 0.22,
+    attackLevelFloor: 0.3,
+    attackEnvelopeFloor: 0.075,
+    sustainHoldRatio: 0.78,
+    sustainedRemovalRetention: 0.65,
   },
 };
 
@@ -425,7 +455,10 @@ function getChannelSignal(
       const level = clamp(snapshot.high * 0.78 + spectrum.high * 0.42);
       return {
         level,
-        sustainLevel: level,
+        // Fine-band pulses make glyph bursts vivid, but they must not keep a
+        // channel open by themselves. The slow macro envelope is what tells
+        // us that the high-frequency content is actually sustained.
+        sustainLevel: snapshot.high,
         pulse: Math.max(
           snapshot.highPulse,
           snapshot.finePulse.presence,
@@ -436,8 +469,58 @@ function getChannelSignal(
   }
 }
 
+function getChannelActivity(
+  channel: GlitchChannel,
+  signal: ChannelSignal,
+  calibration: MusicRhythmCalibration,
+): ChannelActivity {
+  const config = CHANNEL_CONFIG[channel];
+  const sustainThreshold =
+    channel === 'blackout'
+      ? calibration.blackoutSustainThreshold
+      : calibration.dispersionSustainThreshold;
+  const pulseThreshold = Math.max(
+    channel === 'blackout'
+      ? calibration.blackoutPulseThreshold
+      : DISPERSION_PULSE_THRESHOLD,
+    config.attackPulseFloor,
+  );
+  const sustainHoldThreshold = sustainThreshold * config.sustainHoldRatio;
+  const sustainStrength = clamp(
+    (signal.sustainLevel - sustainHoldThreshold) /
+      Math.max(0.001, sustainThreshold - sustainHoldThreshold),
+  );
+
+  return {
+    // A sustained sound can run the slower refresh path once it clears the
+    // lower hold threshold. The full threshold still maps to full retention.
+    hasSustainedSignal: sustainStrength > 0,
+    // Require both a meaningful absolute level and a smoothed envelope. This
+    // filters isolated low-volume jitter even when its relative pulse is high.
+    hasAttack:
+      signal.pulse >= pulseThreshold &&
+      signal.level >= config.attackLevelFloor &&
+      signal.sustainLevel >= config.attackEnvelopeFloor,
+    // Preserve part of the current density during a continuous passage, but
+    // retain some turnover so a long section does not fill every text node.
+    removalRetention: sustainStrength * config.sustainedRemovalRetention,
+  };
+}
+
 function getOverallLoudness(snapshot: RhythmSnapshot): number {
   return clamp(snapshot.bass * 0.56 + snapshot.mid * 0.28 + snapshot.high * 0.16);
+}
+
+function getLoudnessRetention(
+  snapshot: RhythmSnapshot,
+  calibration: MusicRhythmCalibration,
+): number {
+  // This only protects spans that already exist. It must not open a channel
+  // or create new corruption from loudness alone.
+  return clamp(
+    (getOverallLoudness(snapshot) - calibration.bodyLoudnessThreshold) /
+      calibration.bodyLoudnessRange,
+  );
 }
 
 function getLargeBlackoutPressure(
@@ -466,11 +549,7 @@ function getBodyBlackoutCoverageFloor(
   snapshot: RhythmSnapshot,
   calibration: MusicRhythmCalibration,
 ): number {
-  const overallLoudness = getOverallLoudness(snapshot);
-  const loudnessPressure = clamp(
-    (overallLoudness - calibration.bodyLoudnessThreshold) /
-      calibration.bodyLoudnessRange,
-  );
+  const loudnessPressure = getLoudnessRetention(snapshot, calibration);
   const lowPressure = clamp(
     (snapshot.bass - calibration.bodyLowThreshold) / calibration.bodyLowRange,
   );
@@ -519,6 +598,8 @@ class MusicRhythmController {
   private fineEnvelope = createFineLevels();
   private finePulse = createFineLevels();
   private bassFloor = 0.04;
+  private blackoutRemovalFloor = BASS_FLOOR_REFERENCE_MIN;
+  private blackoutRemovalHoldUntil = 0;
   private beatPulse = 0;
   private calibration: MusicRhythmCalibration = DEFAULT_RHYTHM_CALIBRATION;
 
@@ -558,18 +639,25 @@ class MusicRhythmController {
     const previousProfile = target.options.profile;
     target.options = { ...options };
 
+    if (!options.enabled) {
+      target.bodyCoverageFloor = 0;
+      target.bodyCoverageUpdatedAt = 0;
+      restoreGlitchSpans(element);
+      element.classList.remove(
+        'music-glitch-target',
+        `music-glitch-target--${previousProfile}`,
+        `music-glitch-target--${options.profile}`,
+      );
+      delete element.dataset.musicRhythmProfile;
+      return;
+    }
+
     element.classList.add('music-glitch-target');
     if (previousProfile !== options.profile) {
       element.classList.remove(`music-glitch-target--${previousProfile}`);
     }
     element.classList.add(`music-glitch-target--${options.profile}`);
     element.dataset.musicRhythmProfile = options.profile;
-
-    if (!options.enabled) {
-      target.bodyCoverageFloor = 0;
-      target.bodyCoverageUpdatedAt = 0;
-      restoreGlitchSpans(element);
-    }
   }
 
   connect(
@@ -822,6 +910,7 @@ class MusicRhythmController {
         ? BASS_FLOOR_FALL_RESPONSE
         : BASS_FLOOR_RISE_RESPONSE;
     this.bassFloor += (bassFloorTarget - this.bassFloor) * bassFloorResponse;
+    this.updateBlackoutRemovalFloor(now, deltaMs);
 
     const beatThreshold = Math.max(0.075, this.bassFloor * 1.34);
     const isBeat =
@@ -858,6 +947,7 @@ class MusicRhythmController {
 
   private runGlitchCycles(snapshot: RhythmSnapshot, now: number): void {
     const spectrum = getGlitchSpectrum(snapshot);
+    const loudnessRetention = getLoudnessRetention(snapshot, this.calibration);
 
     for (const target of this.targets.values()) {
       if (
@@ -887,6 +977,7 @@ class MusicRhythmController {
           snapshot,
           spectrum,
           blackoutCoverageFloor,
+          loudnessRetention,
           now,
         );
       }
@@ -910,6 +1001,23 @@ class MusicRhythmController {
     return heldFloor;
   }
 
+  // The beat baseline needs to fall quickly so the next quiet passage can
+  // still detect attacks. Keep a separate, peak-held copy for black-block
+  // removal instead, then release it smoothly after a short grace period.
+  private updateBlackoutRemovalFloor(now: number, deltaMs: number): void {
+    if (this.bassFloor >= this.blackoutRemovalFloor) {
+      this.blackoutRemovalFloor = this.bassFloor;
+      this.blackoutRemovalHoldUntil = now + BLACKOUT_REMOVAL_HOLD_MS;
+      return;
+    }
+
+    if (now < this.blackoutRemovalHoldUntil) return;
+
+    const fallProgress = 1 - Math.pow(0.5, deltaMs / BLACKOUT_REMOVAL_FALL_HALF_LIFE);
+    this.blackoutRemovalFloor +=
+      (this.bassFloor - this.blackoutRemovalFloor) * fallProgress;
+  }
+
   private runGlitchChannel(
     target: RhythmTarget,
     profile: ProfileConfig,
@@ -918,30 +1026,22 @@ class MusicRhythmController {
     snapshot: RhythmSnapshot,
     spectrum: GlitchSpectrum,
     blackoutCoverageFloor: number,
+    loudnessRetention: number,
     now: number,
   ): void {
     const config = CHANNEL_CONFIG[channel];
     const level = clamp(signal.level * profile.gain);
-    const sustainThreshold =
-      channel === 'blackout'
-        ? this.calibration.blackoutSustainThreshold
-        : this.calibration.dispersionSustainThreshold;
-    const pulseThreshold =
-      channel === 'blackout'
-        ? this.calibration.blackoutPulseThreshold
-        : DISPERSION_PULSE_THRESHOLD;
+    const activity = getChannelActivity(channel, signal, this.calibration);
     // Profile gain controls visual density after a channel is open. It must
     // not alter the audio threshold itself, otherwise the same track can be
     // permanently "heavy" for one text profile and quiet for another.
-    const hasSustainedSignal = signal.sustainLevel >= sustainThreshold;
-    const hasAttack = signal.pulse >= pulseThreshold;
 
     const mustMaintainCoverage =
       blackoutCoverageFloor > 0 &&
       getBlackoutCoverage(target.element).ratio < blackoutCoverageFloor;
 
-    if (!hasSustainedSignal && !hasAttack && !mustMaintainCoverage) {
-      this.releaseInactiveChannel(target, channel, config, now);
+    if (!activity.hasSustainedSignal && !activity.hasAttack && !mustMaintainCoverage) {
+      this.releaseInactiveChannel(target, channel, config, loudnessRetention, now);
       return;
     }
     if (now < target.nextCycleAt[channel]) return;
@@ -954,7 +1054,7 @@ class MusicRhythmController {
       (cadence * profile.refreshScale) / (1 + level * profile.cadenceResponse),
     );
 
-    const burst = hasAttack && Math.random() < profile.beatChance;
+    const burst = activity.hasAttack && Math.random() < profile.beatChance;
     const sustainedActionChance =
       config.sustainedActionFloor + level * (1 - config.sustainedActionFloor);
     if (!burst && !mustMaintainCoverage && Math.random() > sustainedActionChance) return;
@@ -968,6 +1068,7 @@ class MusicRhythmController {
       snapshot,
       spectrum,
       blackoutCoverageFloor,
+      Math.max(loudnessRetention, activity.removalRetention),
     );
   }
 
@@ -975,20 +1076,24 @@ class MusicRhythmController {
     target: RhythmTarget,
     channel: GlitchChannel,
     config: ChannelConfig,
+    loudnessRetention: number,
     now: number,
   ): void {
     if (now < target.nextCycleAt[channel]) return;
 
     const intensity = INTENSITY_CONFIG[target.options.intensity];
-    const adaptiveRemovalScale = getBlackoutRemovalScale(channel, this.bassFloor);
+    const adaptiveRemovalScale = getBlackoutRemovalScale(channel, this.blackoutRemovalFloor);
     // Effects otherwise remain in the DOM until the next low/high hit, which
     // makes a block generated at one beat look as though it belongs to a later
     // section. Fade only this channel's spans between passages.
-    const releaseProbability = clamp(
+    const baseReleaseProbability = clamp(
       0.34 + intensity.removeProbability * config.removalScale * adaptiveRemovalScale,
       channel === 'blackout' ? 0.3 : 0.38,
       0.62,
     );
+    // When the mix is still loud, retain the currently visible corruption
+    // instead of letting a momentary band drop erase it all at once.
+    const releaseProbability = baseReleaseProbability * (1 - loudnessRetention);
     removeSomeGlitchSpans(target.element, releaseProbability, channel);
     target.nextCycleAt[channel] = now + Math.max(180, config.minimumDelay * 1.5);
   }
@@ -1002,10 +1107,11 @@ class MusicRhythmController {
     snapshot: RhythmSnapshot,
     spectrum: GlitchSpectrum,
     blackoutCoverageFloor: number,
+    removalRetention: number,
   ): void {
     const channelConfig = CHANNEL_CONFIG[channel];
     const intensity = INTENSITY_CONFIG[target.options.intensity];
-    const adaptiveRemovalScale = getBlackoutRemovalScale(channel, this.bassFloor);
+    const adaptiveRemovalScale = getBlackoutRemovalScale(channel, this.blackoutRemovalFloor);
     const actionProbability = clamp(
       intensity.actionProbability *
         channelConfig.mutationScale *
@@ -1015,7 +1121,7 @@ class MusicRhythmController {
       channel === 'blackout' && target.options.profile === 'body'
         ? getBlackoutCoverage(target.element)
         : null;
-    const removeProbability =
+    const baseRemoveProbability =
       coverageBefore && coverageBefore.ratio < blackoutCoverageFloor
         ? 0
         : clamp(
@@ -1025,6 +1131,7 @@ class MusicRhythmController {
             (0.45 + level * 0.35) +
             (target.options.profile === 'body' ? level * 0.18 : 0),
         );
+    const removeProbability = baseRemoveProbability * (1 - removalRetention);
 
     // Each channel only refreshes its own spans. High-frequency glyph
     // corruption therefore cannot clear low-end black blocks, and vice versa.
@@ -1271,6 +1378,8 @@ class MusicRhythmController {
     this.fineEnvelope = createFineLevels();
     this.finePulse = createFineLevels();
     this.bassFloor = 0.04;
+    this.blackoutRemovalFloor = BASS_FLOOR_REFERENCE_MIN;
+    this.blackoutRemovalHoldUntil = 0;
     this.beatPulse = 0;
     for (const target of this.targets.values()) {
       target.bodyCoverageFloor = 0;

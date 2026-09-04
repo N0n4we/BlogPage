@@ -3,4 +3,5 @@ export interface BlogPost {
   dateStr: string;
   title: string;
   displayDate: string;
+  hasGlitchEffect: boolean;
 }

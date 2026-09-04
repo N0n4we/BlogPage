@@ -154,19 +154,19 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
 
   // ---- Glitch 效果 ----
   useGlitchEffect(titleRef, {
-    enabled: true,
+    enabled: post.hasGlitchEffect,
     intensity: 'light',
     profile: 'title',
   });
 
   useGlitchEffect(metaRef, {
-    enabled: true,
+    enabled: post.hasGlitchEffect,
     intensity: 'light',
     profile: 'meta',
   });
 
   useGlitchEffect(contentRef, {
-    enabled: !!html && !error,
+    enabled: post.hasGlitchEffect && !!html && !error,
     paused: !isExpanded,
     intensity: 'heavy',
     profile: 'body',
