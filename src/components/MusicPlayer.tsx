@@ -32,6 +32,13 @@ const songs: Song[] = [
     cover: assetUrl('songs/vulx - iN_mY_BED.jpg'),
     rhythmCalibration: MUSIC_RHYTHM_CALIBRATIONS.inMyBed,
   },
+  {
+    name: 'because it hurts to lose',
+    artist: 'grape milk',
+    url: assetUrl('songs/grape milk - because it hurts to lose.mp3'),
+    cover: assetUrl('songs/grape milk - because it hurts to lose.jpg'),
+    rhythmCalibration: MUSIC_RHYTHM_CALIBRATIONS.becauseItHurtsToLose,
+  },
 ];
 
 export default function MusicPlayer() {

@@ -38,8 +38,8 @@ export interface MusicRhythmCalibration {
 // Blackman FFT, 40 Hz sampling, and the same analyser smoothing as the page.
 // The blackout gates use the smoothed macro bass envelope, not a one-frame
 // fine-band attack: that keeps large blocks on sustained climaxes instead of
-// isolated kicks. MIA is substantially hotter in the low end than iN_mY_BED,
-// so a shared gate would make one track permanently black or the other inert.
+// isolated kicks. The bundled tracks have materially different low-end and
+// high-frequency profiles, so they need independent gates.
 export const MUSIC_RHYTHM_CALIBRATIONS = {
   mia: {
     blackoutSustainThreshold: 0.835,
@@ -67,6 +67,21 @@ export const MUSIC_RHYTHM_CALIBRATIONS = {
     bodyLoudnessThreshold: 0.66,
     bodyLoudnessRange: 0.045,
     bodyLowThreshold: 0.775,
+    bodyLowRange: 0.04,
+    bodyCoverageMinimum: 0.02,
+    bodyCoverageRange: 0.98,
+  },
+  becauseItHurtsToLose: {
+    blackoutSustainThreshold: 0.84,
+    blackoutPulseThreshold: 0.21,
+    dispersionSustainThreshold: 0.24,
+    heavyLowBlockThreshold: 0.82,
+    heavyLowBlockRange: 0.055,
+    heavyLoudnessThreshold: 0.685,
+    heavyLoudnessRange: 0.05,
+    bodyLoudnessThreshold: 0.675,
+    bodyLoudnessRange: 0.045,
+    bodyLowThreshold: 0.81,
     bodyLowRange: 0.04,
     bodyCoverageMinimum: 0.02,
     bodyCoverageRange: 0.98,
