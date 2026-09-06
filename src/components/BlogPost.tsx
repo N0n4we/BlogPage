@@ -2,13 +2,10 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState,
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
-import { devourContent } from '../utils/devour';
 import { useGlitchEffect } from '../hooks/useGlitchEffect';
-import { useContentTransition } from '../hooks/useContentTransition';
 import { useContentPipeline } from '../hooks/useContentPipeline';
 import { documentHead } from '../modules/documentHead';
 import type { BlogPost as BlogPostType } from '../types/blog';
@@ -18,9 +15,6 @@ interface BlogPostProps {
   isExpanded: boolean;
   onToggle: () => void;
 }
-
-/** 首次折叠时替换原文的 mantra 短语 */
-const DEVOUR_MANTRA = 'The past cannot define me.';
 
 /** 3D tilt max angle in degrees */
 const TILT_MAX_ANGLE = 8;
@@ -41,11 +35,6 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const metaRef = useRef<HTMLParagraphElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { containerRef, expand, collapse, syncHeight } = useContentTransition();
-  const [devouredHtml, setDevouredHtml] = useState('');
-
-  // Display: show devoured HTML after first collapse, original otherwise
-  const displayHtml = devouredHtml || html;
 
   // Meta description from content summary (only when expanded)
   useEffect(() => {
@@ -53,13 +42,6 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     documentHead.setTitle(post.title);
     if (summary) documentHead.setMeta(summary);
   }, [post.title, summary, isExpanded]);
-
-  // Resize: re-measure expanded content height
-  useEffect(() => {
-    if (!isExpanded) return;
-    window.addEventListener('resize', syncHeight);
-    return () => window.removeEventListener('resize', syncHeight);
-  }, [isExpanded, syncHeight]);
 
   // ---- 鼠标涟漪 + 3D tilt ----
   const handleMouseMove = useCallback((e: MouseEvent<HTMLElement>) => {
@@ -79,55 +61,22 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
     }
   }, []);
 
-  // ---- 展开 / 折叠 + 吞噬 ----
+  // ---- 内容就绪后 Prism 高亮 ----
   useEffect(() => {
-    let cancelled = false;
-    const isCurrentlyExpanded = containerRef.current?.classList.contains('expanded') ?? false;
-
-    if (isExpanded) {
-      // Still loading or no content yet → wait
-      if (loading || (!html && !loading)) return;
-      expand();
-    } else if (isCurrentlyExpanded) {
-      // First collapse: replace content with mantra
-      if (!devouredHtml && html && !error) {
-        const dh = devourContent(html, DEVOUR_MANTRA);
-        // Sync DOM immediately so the collapse transition shows the mantra
-        if (contentRef.current) contentRef.current.innerHTML = dh;
-        queueMicrotask(() => {
-          if (!cancelled) setDevouredHtml(dh);
-        });
-      }
-      collapse();
-    }
-
-    return () => { cancelled = true; };
-  }, [isExpanded, loading, html, error, devouredHtml, expand, collapse, containerRef]);
-
-  // ---- 内容就绪后 Prism 高亮 + 调整高度 ----
-  useEffect(() => {
-    if (!html || !containerRef.current || !isExpanded) return;
+    if (!html || !contentRef.current || !isExpanded) return;
 
     let cancelled = false;
-    let rafId = 0;
 
     void import('../utils/highlight').then(({ highlightContent }) => {
-      if (cancelled || !containerRef.current || !isExpanded) return;
-
-      highlightContent(containerRef.current);
-      rafId = requestAnimationFrame(() => {
-        const el = containerRef.current;
-        if (!el || cancelled || !isExpanded) return;
-
-        syncHeight();
-      });
+      if (!cancelled && contentRef.current) {
+        highlightContent(contentRef.current);
+      }
     });
 
     return () => {
       cancelled = true;
-      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [html, isExpanded, syncHeight, containerRef]);
+  }, [html, isExpanded]);
 
   // ---- 点击切换 ----
   const handleClick = (e: MouseEvent<HTMLElement>) => {
@@ -155,18 +104,21 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
   // ---- Glitch 效果 ----
   useGlitchEffect(titleRef, {
     enabled: post.hasGlitchEffect,
+    rhythmEnabled: true,
     intensity: 'light',
     profile: 'title',
   });
 
   useGlitchEffect(metaRef, {
     enabled: post.hasGlitchEffect,
+    rhythmEnabled: true,
     intensity: 'light',
     profile: 'meta',
   });
 
   useGlitchEffect(contentRef, {
     enabled: post.hasGlitchEffect && !!html && !error,
+    rhythmEnabled: !!html && !error,
     paused: !isExpanded,
     intensity: 'heavy',
     profile: 'body',
@@ -196,14 +148,13 @@ export default function BlogPost({ post, isExpanded, onToggle }: BlogPostProps) 
         <div
           className="post-full-content"
           id={`post-content-${post.dateStr}`}
-          ref={containerRef}
-          aria-hidden={!isExpanded}
+          hidden={!isExpanded}
         >
           <div
             className="rendered-content"
             ref={contentRef}
             dangerouslySetInnerHTML={{
-              __html: loading ? '<p class="content-loading">正在加载...</p>' : displayHtml,
+              __html: loading ? '<p class="content-loading">正在加载...</p>' : html,
             }}
           />
         </div>

@@ -12,6 +12,7 @@ export function useGlitchEffect(
 ): void {
   const {
     enabled,
+    rhythmEnabled,
     paused = false,
     intensity,
     profile,
@@ -30,9 +31,10 @@ export function useGlitchEffect(
 
     musicRhythm.updateTarget(container, {
       enabled,
+      rhythmEnabled,
       paused,
       intensity,
       profile,
     });
-  }, [containerRef, enabled, paused, intensity, profile]);
+  }, [containerRef, enabled, rhythmEnabled, paused, intensity, profile]);
 }

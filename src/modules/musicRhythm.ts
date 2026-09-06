@@ -12,7 +12,10 @@ export type GlitchIntensity = 'light' | 'heavy';
 export type RhythmProfile = 'logo' | 'title' | 'meta' | 'body';
 
 export interface MusicGlitchOptions {
+  /** Enables blackout and character-corruption DOM mutations. */
   enabled: boolean;
+  /** Keeps music-driven CSS motion active when mutations are disabled. */
+  rhythmEnabled?: boolean;
   paused?: boolean;
   intensity: GlitchIntensity;
   profile: RhythmProfile;
@@ -241,7 +244,7 @@ const CHANNEL_CONFIG: Record<GlitchChannel, ChannelConfig> = {
     minDelayScale: 0.54,
     maxDelayScale: 0.64,
     minimumDelay: 60,
-    mutationScale: 1,
+    mutationScale: 0.5,
     sustainedActionFloor: 0.72,
     removalScale: 0.42,
     attackPulseFloor: 0.22,
@@ -638,26 +641,29 @@ class MusicRhythmController {
 
     const previousProfile = target.options.profile;
     target.options = { ...options };
+    const rhythmEnabled = options.rhythmEnabled ?? options.enabled;
 
-    if (!options.enabled) {
-      target.bodyCoverageFloor = 0;
-      target.bodyCoverageUpdatedAt = 0;
-      restoreGlitchSpans(element);
+    if (rhythmEnabled) {
+      element.classList.add('music-glitch-target');
+      if (previousProfile !== options.profile) {
+        element.classList.remove(`music-glitch-target--${previousProfile}`);
+      }
+      element.classList.add(`music-glitch-target--${options.profile}`);
+      element.dataset.musicRhythmProfile = options.profile;
+    } else {
       element.classList.remove(
         'music-glitch-target',
         `music-glitch-target--${previousProfile}`,
         `music-glitch-target--${options.profile}`,
       );
       delete element.dataset.musicRhythmProfile;
-      return;
     }
 
-    element.classList.add('music-glitch-target');
-    if (previousProfile !== options.profile) {
-      element.classList.remove(`music-glitch-target--${previousProfile}`);
+    if (!options.enabled) {
+      target.bodyCoverageFloor = 0;
+      target.bodyCoverageUpdatedAt = 0;
+      restoreGlitchSpans(element);
     }
-    element.classList.add(`music-glitch-target--${options.profile}`);
-    element.dataset.musicRhythmProfile = options.profile;
   }
 
   connect(

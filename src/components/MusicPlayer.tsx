@@ -39,6 +39,13 @@ const songs: Song[] = [
     cover: assetUrl('songs/grape milk - because it hurts to lose.jpg'),
     rhythmCalibration: MUSIC_RHYTHM_CALIBRATIONS.becauseItHurtsToLose,
   },
+  {
+    name: 'DEFINITIVAMENTE AFIADO',
+    artist: 'ALIEN Z',
+    url: assetUrl('songs/ALIEN Z - DEFINITIVAMENTE AFIADO.mp3'),
+    cover: assetUrl('songs/ALIEN Z - DEFINITIVAMENTE AFIADO.png'),
+    rhythmCalibration: MUSIC_RHYTHM_CALIBRATIONS.mia,
+  },
 ];
 
 export default function MusicPlayer() {
